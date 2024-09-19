@@ -5,7 +5,7 @@
 
 
 
-//#define CREATE_LICENSE
+#define CREATE_LICENSE
 
 void createLicense();
 void loadLicense();
@@ -31,18 +31,27 @@ int main(int argc, char* argv[])
 
 void createLicense()
 {
+	/*
 	LicenseManager::Logger::logInfo("Generating private key");
 	std::string privateKey = LicenseManager::License::generatePrivateKey();
 	std::string publicKey = LicenseManager::License::getPublicKeyFromPrivateKey(privateKey);
 	LicenseManager::License::savePrivateKeyToFile(privateKey, "private.pem");
-	LicenseManager::License::savePublicKeyToFile(publicKey, "public.pem");
+	LicenseManager::License::savePublicKeyToFile(publicKey, "public.pem");*/
+
+	std::string privateKey;
+	if(!LicenseManager::License::loadPrivateKeyFromFile("private.pem", privateKey))
+	{ 
+		LicenseManager::Logger::logInfo("Generating private key");
+		privateKey = LicenseManager::License::generatePrivateKey();
+		std::string publicKey = LicenseManager::License::getPublicKeyFromPrivateKey(privateKey);
+		LicenseManager::License::savePrivateKeyToFile(privateKey, "private.pem");
+		LicenseManager::License::savePublicKeyToFile(publicKey, "public.pem");
+	}
 
 	LicenseManager::Logger::logInfo("Populating license data");
 	std::map<std::string, std::string> licenseData;
 	licenseData["name"] = "John Doe";
-	licenseData["email"] = "mail";
-	licenseData["company"] = "company";
-	licenseData["date"] = QDate::currentDate().toString("yyyy-MM-dd").toStdString();
+	licenseData["expiryDate"] = "2025-01-01";
 
 	LicenseManager::License license;
 	license.setLicenseData(licenseData);
@@ -56,27 +65,27 @@ void loadLicense()
 	
 	/*std::string publicKey =
 		"-----BEGIN PUBLIC KEY-----\n"
-		"MIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8AMIIBCgKCAQEAxFGAg2LApG0bMnfIY9Fv\n"
-		"0j04dALB2VlPXd0EIHf9hDrnfOBszpDuI240GYCLyuIfcAh2wLbXUFoCEi3oBL8g\n"
-		"9WW533cQ6aKN95lXhFr9m9VQOxeJ1ypsDcd8DYEF+dmDYfCz1VUoz9TyaWDC5mKu\n"
-		"hdjebNL7OrYQnkSxdaT1p4ZZlrWGThKTlvgIGVyNM1wa6hznKOZlEzhhtd3p4sOg\n"
-		"tFk+f3WCedtoKcTTm7RrMMm5OrtfUKCsCnY90JTQyNwgX0gMphToPd3MdDHEfyzR\n"
-		"wJK9cpR0kEjb5Wpn9osGXiVbhgVOafDkdIgihIxR07L5Sr98Kc7lFJEknb/oUhzl\n"
-		"OQIDAQAB\n"
-		"-----END PUBLIC KEY----- \n";
+		"MIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8AMIIBCgKCAQEA1o/tXYhx89lPvwDgePsp\n"
+		"6kNyMpUdnZqsrr+9lzbCQ4EVtCjIpbv+sKP5sZ6REi9/dshH4xV/Gbh4RhbdwrC9\n"
+		"EtlIuss4zagfpYnuRFIrVDIMV5VDmyU0WOzC75XAa/65z8iXSj8aZCCsq0FJ9y6y\n"
+		"5s4VO/wfuZ+DjCB10KGijzXjcxnULKZdhSILq1srTUzw433c+fag3A+l7hrHNaKO\n"
+		"rbOX9MrjTuoqNt4qNsIw97NP+Ptu+of4Dl0S89II+fXxATBJLbSKMOlOt4d20YOb\n"
+		"SZetkHpCNRNjejBMuO9k5+Uec1v/Ukjolwr3OzkxnBEpxtIm2fwKRP++LPxk4B42\n"
+		"RQIDAQAB\n"
+		"-----END PUBLIC KEY-----\n";
 	*/
 
 	// Use an binary encrypted public key
 	constexpr auto encryptedPublicKey = LicenseManager::EncryptedConstant::encrypt_string(
 		"-----BEGIN PUBLIC KEY-----\n"
-		"MIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8AMIIBCgKCAQEAxFGAg2LApG0bMnfIY9Fv\n"
-		"0j04dALB2VlPXd0EIHf9hDrnfOBszpDuI240GYCLyuIfcAh2wLbXUFoCEi3oBL8g\n"
-		"9WW533cQ6aKN95lXhFr9m9VQOxeJ1ypsDcd8DYEF+dmDYfCz1VUoz9TyaWDC5mKu\n"
-		"hdjebNL7OrYQnkSxdaT1p4ZZlrWGThKTlvgIGVyNM1wa6hznKOZlEzhhtd3p4sOg\n"
-		"tFk+f3WCedtoKcTTm7RrMMm5OrtfUKCsCnY90JTQyNwgX0gMphToPd3MdDHEfyzR\n"
-		"wJK9cpR0kEjb5Wpn9osGXiVbhgVOafDkdIgihIxR07L5Sr98Kc7lFJEknb/oUhzl\n"
-		"OQIDAQAB\n"
-		"-----END PUBLIC KEY----- \n");
+		"MIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8AMIIBCgKCAQEA1o/tXYhx89lPvwDgePsp\n"
+		"6kNyMpUdnZqsrr+9lzbCQ4EVtCjIpbv+sKP5sZ6REi9/dshH4xV/Gbh4RhbdwrC9\n"
+		"EtlIuss4zagfpYnuRFIrVDIMV5VDmyU0WOzC75XAa/65z8iXSj8aZCCsq0FJ9y6y\n"
+		"5s4VO/wfuZ+DjCB10KGijzXjcxnULKZdhSILq1srTUzw433c+fag3A+l7hrHNaKO\n"
+		"rbOX9MrjTuoqNt4qNsIw97NP+Ptu+of4Dl0S89II+fXxATBJLbSKMOlOt4d20YOb\n"
+		"SZetkHpCNRNjejBMuO9k5+Uec1v/Ukjolwr3OzkxnBEpxtIm2fwKRP++LPxk4B42\n"
+		"RQIDAQAB\n"
+		"-----END PUBLIC KEY-----\n");
 
 	LicenseManager::License license;
 	license.loadFromFile("license.lic");
