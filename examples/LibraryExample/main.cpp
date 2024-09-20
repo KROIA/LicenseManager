@@ -9,6 +9,8 @@
 
 //#define CREATE_LICENSE
 
+//#define CREATE_LICENSE
+
 void createLicense();
 void loadLicense();
 std::array<char, 1539080 + 8> fileData{};
