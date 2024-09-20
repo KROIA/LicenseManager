@@ -2,14 +2,16 @@
 #include <iostream>
 #include "LicenseManager.h"
 #include <QDate>
+#include <array>
+#include <type_traits>
+#include <utility>
 
 
-
-#define CREATE_LICENSE
+//#define CREATE_LICENSE
 
 void createLicense();
 void loadLicense();
-
+std::array<char, 1539080 + 8> fileData{};
 
 int main(int argc, char* argv[])
 {
@@ -72,8 +74,10 @@ void loadLicense()
 		"rbOX9MrjTuoqNt4qNsIw97NP+Ptu+of4Dl0S89II+fXxATBJLbSKMOlOt4d20YOb\n"
 		"SZetkHpCNRNjejBMuO9k5+Uec1v/Ukjolwr3OzkxnBEpxtIm2fwKRP++LPxk4B42\n"
 		"RQIDAQAB\n"
-		"-----END PUBLIC KEY-----\n";
-	*/
+		"-----END PUBLIC KEY-----\n";*/
+	
+	constexpr std::array<char, LicenseManager::EncryptedConstant::randKeyLen> randKey = LicenseManager::EncryptedConstant::randTimeKey();
+	constexpr auto encrypted = LicenseManager::EncryptedConstant::encrypt_string("Text", randKey);
 
 	// Use an binary encrypted public key
 	constexpr auto encryptedPublicKey = LicenseManager::EncryptedConstant::encrypt_string(
@@ -90,7 +94,9 @@ void loadLicense()
 	LicenseManager::License license;
 	license.loadFromFile("license.lic");
 	LicenseManager::Logger::logInfo("Verifying license");
+	LicenseManager::License::savePrivateKeyToFile(encryptedPublicKey.data(), "encrypted.txt");
 	LicenseManager::Logger::logInfo("Public Key:\n"+LicenseManager::EncryptedConstant::decrypt_string(encryptedPublicKey));
+	
 	if (license.isVerified(LicenseManager::EncryptedConstant::decrypt_string(encryptedPublicKey)))
 	{
 		LicenseManager::Logger::logInfo("License is verified");
