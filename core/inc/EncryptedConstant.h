@@ -50,8 +50,7 @@ namespace LicenseManager
 		constexpr std::array<char, randKeyLen> randTimeKey()
 		{
 			const char time[] = __TIME__;
-			//return time[sizeof(time)-2];
-			size_t size = sizeof(time)-1;
+			size_t size = sizeof(time) - 1;			
 			
 			std::uint32_t hashedTime = simple_hash(time, size+1);
 			char encryptionKey = hashedTime;
@@ -79,18 +78,19 @@ namespace LicenseManager
 		/// </summary>
 		/// <description>
 		/// Usage:
-		/// constexpr auto encrypted = LicenseManager::EncryptedConstant::encrypt_string("Hello, Compile-Time Encryption!",'A');
+		/// constexpr auto encrypted = LicenseManager::EncryptedConstant::encrypt_string("Hello, Compile-Time Encryption!");
 		/// 
-		/// The second parameter is the encryption key which is used to encrypt the string.
+		/// The encryption key is generated from the __TIME__ macro.
 		/// Note that the encryption key is stored at the end of the encrypted string.
+		/// Each encrypted char is used to encrypt the next char
 		/// </description>
 		/// <typeparam name="N"></typeparam>
 		/// <param name="plainText"></param>
-		/// <param name="encryptionKey"></param>
 		/// <returns></returns>
 		template<std::size_t N>
-		constexpr std::array<char, N + randKeyLen> encrypt_string(const char(&plainText)[N], std::array<char, randKeyLen> randKey)
+		constexpr std::array<char, N + randKeyLen> encrypt_string(const char(&plainText)[N])
 		{
+			std::array<char, randKeyLen> randKey = randTimeKey();
 			std::array<char, N + randKeyLen> encrypted{};
 			for (std::size_t i = 0; i < N; ++i) {
 				encrypted[i] = plainText[i];
@@ -100,31 +100,12 @@ namespace LicenseManager
 				}
 				if (i > 0)
 				{
-					encrypted[i] = xorChar(encrypted[i], encrypted[i-1]);
+					encrypted[i] = xorChar(encrypted[i], encrypted[i - 1]);
 				}
 			}
-			for(std::size_t i=0; i<randKeyLen; ++i)
-				encrypted[N+i] = randKey[i];  // Store the encryption key at the end
+			for (std::size_t i = 0; i < randKeyLen; ++i)
+				encrypted[N + i] = randKey[i];  // Store the encryption key at the end
 			return encrypted;
-		}
-
-		/// <summary>
-		/// Encrypts a string at compile-time using XOR encryption
-		/// </summary>
-		/// <description>
-		/// Usage:
-		/// constexpr auto encrypted = LicenseManager::EncryptedConstant::encrypt_string("Hello, Compile-Time Encryption!");
-		/// 
-		/// The encryption key is generated from the __TIME__ macro.
-		/// Note that the encryption key is stored at the end of the encrypted string.
-		/// <typeparam name="N"></typeparam>
-		/// <param name="plainText"></param>
-		/// <returns></returns>
-		template<std::size_t N>
-		constexpr std::array<char, N + randKeyLen> encrypt_string(const char(&plainText)[N])
-		{
-			std::array<char, randKeyLen> randKey = randTimeKey();
-			return encrypt_string(plainText, randKey);
 		}
 
 
@@ -145,14 +126,14 @@ namespace LicenseManager
 		constexpr std::string decrypt_string(const std::array<char, N>& encrypted)
 		{
 			std::string decrypted;
-			decrypted.resize(N - randKeyLen);
+			decrypted.resize(N - randKeyLen -1);
 			std::array<char, randKeyLen> encryptionKey{};
 			// Get the encryption key
 			for (std::size_t i = 0; i < randKeyLen; ++i)
 			{
 				encryptionKey[i] = encrypted[N - randKeyLen + i];
 			}
-			for (size_t i = encrypted.size() - randKeyLen; i>0; --i)
+			for (size_t i = encrypted.size() - randKeyLen-1; i>0; --i)
 			{
 				decrypted[i - 1] = encrypted[i - 1];
 				if (i > 1)

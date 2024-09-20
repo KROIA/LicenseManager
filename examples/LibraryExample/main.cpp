@@ -76,8 +76,6 @@ void loadLicense()
 		"RQIDAQAB\n"
 		"-----END PUBLIC KEY-----\n";*/
 	
-	constexpr std::array<char, LicenseManager::EncryptedConstant::randKeyLen> randKey = LicenseManager::EncryptedConstant::randTimeKey();
-	constexpr auto encrypted = LicenseManager::EncryptedConstant::encrypt_string("Text", randKey);
 
 	// Use an binary encrypted public key
 	constexpr auto encryptedPublicKey = LicenseManager::EncryptedConstant::encrypt_string(
