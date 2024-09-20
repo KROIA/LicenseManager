@@ -37,8 +37,8 @@ namespace LicenseManager
 			return m_signature;
 		}
 
-		void saveToFile(const std::string& filename) const;
-		void loadFromFile(const std::string& filename);
+		bool saveToFile(const std::string& filename) const;
+		bool loadFromFile(const std::string& filename);
 
 		bool isVerified(const std::string &publicKey) const;
 

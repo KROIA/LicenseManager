@@ -80,7 +80,7 @@ namespace LicenseManager
 	}
 
 
-	void License::saveToFile(const std::string& filename) const
+	bool License::saveToFile(const std::string& filename) const
 	{
 		QJsonObject json;
 
@@ -106,9 +106,11 @@ namespace LicenseManager
 		{
 			file.write(data);
 			file.close();
+			return true;
 		}
+		return false;
 	}
-	void License::loadFromFile(const std::string& filename)
+	bool License::loadFromFile(const std::string& filename)
 	{
 		QFile file(filename.c_str());
 		if(file.open(QIODevice::ReadOnly))
@@ -125,7 +127,9 @@ namespace LicenseManager
 			}
 			m_signature = json["signature"].toString().toStdString();
 			file.close();
+			return true;
 		}
+		return false;
 	}
 	bool License::isVerified(const std::string& publicKey) const
 	{

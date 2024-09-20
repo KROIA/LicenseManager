@@ -9,6 +9,33 @@
 	This can be usefull to hide constant strings in the binary.
 	For example, you can store the public key in the binary in an encrypted form.
 	When you need to use the public key, you can decrypt it at runtime.
+
+	Usage:
+	constexpr auto encryptedPublicKey = LicenseManager::EncryptedConstant::encrypt_string(
+		"-----BEGIN PUBLIC KEY-----\n"
+		"XXX"
+		"-----END PUBLIC KEY-----\n");
+	
+	std::string decryptedPublicKey = LicenseManager::EncryptedConstant::decrypt_string(encryptedPublicKey);
+
+	Detailed description:
+	1. The encryption key is generated from the __TIME__ macro.
+	   If the LicenseManager::EncryptedConstant::randKeyLen is set to a large enough value,
+	   the encryption key will be unique for each timestamp.
+	2. The encryption key has a length of <LicenseManager::EncryptedConstant::randKeyLen> size
+	3. The encryption key is stored at the end of the encrypted string.
+	4. Each char gets encrypted one by one. 
+	5. Each char gets XORed with each char of the encryption key.
+	   After that the char gets XORed with the previous, already encrypted char.
+
+	6. The decryption is done in reverse order.
+
+	Note that the encryption key is stored at the end of the encrypted string.
+	It is technically possible to decrypt the binary file using every possible key but since the 
+	text gets XORed with the previous char, it is highly unlikely that the decryption will be successful, 
+	unless the exact location in the binary file is known.
+
+
 */
 
 
@@ -16,7 +43,9 @@ namespace LicenseManager
 {  
 	namespace EncryptedConstant
 	{
-		constexpr std::size_t randKeyLen = 8;
+		// The length of the encryption key
+		// 6 bytes is enough to generate an unique key for each __TIME__ macro value
+		constexpr std::size_t randKeyLen = 6;
 
 		constexpr std::uint32_t rotate_right(std::uint32_t value, std::uint32_t count) {
 			return (value >> count) | (value << (32 - count));
@@ -44,33 +73,58 @@ namespace LicenseManager
 			return c ^ key;
 		}
 
-		
+		constexpr uint64_t hash_string(const char* str, uint64_t hash = 0xcbf29ce484222325) {
+			return (*str == 0) ? hash : hash_string(str + 1, (hash ^ static_cast<uint64_t>(*str)) * 0x100000001b3);
+		}
+
+		constexpr auto seed()
+		{
+			return hash_string(__TIME__);
+		}
+		struct PCG
+		{
+			struct pcg32_random_t { std::uint64_t state = 0;  std::uint64_t inc = seed(); };
+			pcg32_random_t rng;
+			typedef std::uint32_t result_type;
+
+			constexpr PCG()
+			{
+				pcg32_random_r();
+				pcg32_random_r();
+			}
+
+			constexpr result_type operator()()
+			{
+				return pcg32_random_r();
+			}
+		private:
+			constexpr std::uint32_t pcg32_random_r()
+			{
+				std::uint64_t oldstate = rng.state;
+				// Advance internal state
+				rng.state = oldstate * 6364136223846793005ULL + (rng.inc | 1);
+				// Calculate output function (XSH RR), uses old state for max ILP
+				std::uint32_t xorshifted = ((oldstate >> 18u) ^ oldstate) >> 27u;
+				std::uint32_t rot = oldstate >> 59u;
+				std::uint32_t result = (xorshifted >> rot) | (xorshifted << ((-rot) & 31));
+				return result;
+			}
+		};
 
 		// Get a random character from the __TIME__ macro
 		constexpr std::array<char, randKeyLen> randTimeKey()
 		{
-			const char time[] = __TIME__;
-			size_t size = sizeof(time) - 1;			
-			
-			std::uint32_t hashedTime = simple_hash(time, size+1);
-			char encryptionKey = hashedTime;
-			for (std::size_t i = 1; i < sizeof(std::uint32_t); ++i)
-				encryptionKey ^= (char)((hashedTime & (std::uint32_t(0xFF) << (i * 8)))>>(i*8));
-
 			std::array<char, randKeyLen> key{};
-
+			PCG pcg;
+			pcg.rng.inc = seed();
 			for (size_t i = 0; i < randKeyLen; ++i)
 			{
-				int shiftAmount = ((i % sizeof(std::uint32_t)) * 8);
-				key[i] = xorChar(((hashedTime & (std::uint32_t(0xFF) << shiftAmount)) >> shiftAmount), time[i%size]);
-			}
-
-			for (size_t i = 0; i < randKeyLen; ++i)
-			{
-				key[i] = simple_hash(key.data(), randKeyLen);
+				key[i] = pcg();
 			}
 			return key;
 		}
+
+
 
 
 		/// <summary>

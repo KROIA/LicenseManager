@@ -1,4 +1,4 @@
-## description: simple library to create log files and UI based logging systems
+## description: OpenSSL is a cryptographic library that enables an open source implementation of Transport Layer Security (TLS) and Secure Sockets Layer (SSL) protocols.
 include(FetchContent)
 
 function(dep LIBRARY_MACRO_NAME SHARED_LIB STATIC_LIB STATIC_PROFILE_LIB)
@@ -6,6 +6,8 @@ function(dep LIBRARY_MACRO_NAME SHARED_LIB STATIC_LIB STATIC_PROFILE_LIB)
     set(LIB_NAME OpenSSL)
 	set(LIB_MACRO_NAME OPEN_SSL)
 
+    # Install the library using the QT Maintenance Tool
+    # Change the path to the installation directory of the library
     set(OPENSSL_ROOT_DIR "C:/Qt/Tools/OpenSSLv3/Win_x64")
     set(OPENSSL_MSVC_STATIC_RT True)
     set(OPENSSL_USE_STATIC_LIBS  True)
