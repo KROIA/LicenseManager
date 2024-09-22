@@ -28,7 +28,7 @@ public:
 
 private:
 	static constexpr char m_orgdecrypted[23] = {"This is a test message"};
-	static constexpr std::array<char, 23+ LicenseManager::EncryptedConstant::randKeyLen> encrypted = LicenseManager::EncryptedConstant::encrypt_string<23>(m_orgdecrypted);
+	static constexpr std::array<char, 22+ LicenseManager::EncryptedConstant::randKeyLen> encrypted = LicenseManager::EncryptedConstant::encrypt_string<23>(m_orgdecrypted);
 	std::string m_encrypted;
 
 	// Tests
@@ -37,7 +37,7 @@ private:
 		TEST_START;
 		m_encrypted = std::string(encrypted.begin(), encrypted.end());
 		
-		TEST_ASSERT(encrypted.size() == sizeof(m_orgdecrypted) + LicenseManager::EncryptedConstant::randKeyLen);
+		TEST_ASSERT(encrypted.size() == sizeof(m_orgdecrypted)-1 + LicenseManager::EncryptedConstant::randKeyLen);
 		bool equalCheck = true;
 		for (size_t i = 0; i < encrypted.size(); ++i)
 		{
@@ -177,6 +177,40 @@ private:
 
 		TEST_MESSAGE("Decrypted test string: \"" + LicenseManager::EncryptedConstant::decrypt_string(encryptedTestString) + "\"");
 		TEST_ASSERT(dataStr.find(LicenseManager::EncryptedConstant::decrypt_string(encryptedTestString)) == std::string::npos);
+	}
+
+	TEST_FUNCTION(encryptedMsgInsideText)
+	{
+		TEST_START;
+
+		constexpr auto message = LicenseManager::EncryptedConstant::encrypt_string(m_orgdecrypted);
+		constexpr size_t offsetSize = 10;
+		std::array<char, message.size() + offsetSize + offsetSize> message2{};
+
+		for (int i = 0; i < offsetSize; i++)
+		{
+			message2[i] = 'X';
+		}
+		for (int i = 0; i < message.size(); i++)
+		{
+			message2[i + offsetSize] = message[i];
+		}
+		for (int i = message.size() + offsetSize; i < message2.size(); i++)
+		{
+			message2[i] = 'X';
+		}
+
+		for (int i = 0; i < LicenseManager::EncryptedConstant::randKeyLen; i++)
+		{
+			message2[message2.size() - LicenseManager::EncryptedConstant::randKeyLen + i] = message[message.size() - LicenseManager::EncryptedConstant::randKeyLen + i];
+		}
+
+		std::string decrypted = LicenseManager::EncryptedConstant::decrypt_string(message2);
+
+		TEST_MESSAGE("Encrypted: " + std::string(message2.begin(), message2.end()));
+		TEST_MESSAGE("Decrypted: " + decrypted);
+
+		TEST_ASSERT(decrypted.find(m_orgdecrypted) == std::string::npos);
 	}
 
 };

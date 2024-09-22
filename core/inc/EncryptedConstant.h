@@ -45,7 +45,7 @@ namespace LicenseManager
 	{
 		// The length of the encryption key
 		// 6 bytes is enough to generate an unique key for each __TIME__ macro value
-		constexpr std::size_t randKeyLen = 6;
+		constexpr std::size_t randKeyLen = 5;
 
 		constexpr std::uint32_t rotate_right(std::uint32_t value, std::uint32_t count) {
 			return (value >> count) | (value << (32 - count));
@@ -142,23 +142,50 @@ namespace LicenseManager
 		/// <param name="plainText"></param>
 		/// <returns></returns>
 		template<std::size_t N>
-		constexpr std::array<char, N + randKeyLen> encrypt_string(const char(&plainText)[N])
+		constexpr std::array<char, N + randKeyLen-1> encrypt_string(const char(&plainText)[N])
 		{
 			std::array<char, randKeyLen> randKey = randTimeKey();
-			std::array<char, N + randKeyLen> encrypted{};
-			for (std::size_t i = 0; i < N; ++i) {
+			std::array<char, N + randKeyLen-1> encrypted{};
+
+			// N-1 to skip the null terminator
+			for (std::size_t i = 0; i < N-1; ++i) {
 				encrypted[i] = plainText[i];
-				for (std::size_t j = 0; j < randKeyLen; ++j)
+
+				//encrypted[i] = xorChar(encrypted[i], 'H');
+				
+				// Use the char at index i+1 to encrypt the char at index i
+				if (i < N - 2)
 				{
-					encrypted[i] = xorChar(encrypted[i], randKey[j]);
+					encrypted[i] = xorChar(encrypted[i], plainText[i + 1]);
 				}
+
+				// Use the char at index i+2 to encrypt the char at index i
+				if (i < N - 3)
+				{
+					encrypted[i] = xorChar(encrypted[i], plainText[i + 2]);
+				}
+
+				// Use the char at index i-1 to encrypt the char at index i
 				if (i > 0)
 				{
 					encrypted[i] = xorChar(encrypted[i], encrypted[i - 1]);
 				}
+
+				// Use the char at index i-2 to encrypt the char at index i
+				if (i > 1)
+				{
+					encrypted[i] = xorChar(encrypted[i], encrypted[i - 2]);
+				}
+
+				// Use the encryption key to encrypt the char at index i
+				for (std::size_t j = 0; j < randKeyLen; ++j)
+				{
+					encrypted[i] = xorChar(encrypted[i], randKey[j]);
+				}
+				
 			}
 			for (std::size_t i = 0; i < randKeyLen; ++i)
-				encrypted[N + i] = randKey[i];  // Store the encryption key at the end
+				encrypted[N + i-1] = randKey[i];  // Store the encryption key at the end
 			return encrypted;
 		}
 
@@ -180,25 +207,50 @@ namespace LicenseManager
 		constexpr std::string decrypt_string(const std::array<char, N>& encrypted)
 		{
 			std::string decrypted;
-			decrypted.resize(N - randKeyLen -1);
+			decrypted.resize(N - randKeyLen);
 			std::array<char, randKeyLen> encryptionKey{};
 			// Get the encryption key
 			for (std::size_t i = 0; i < randKeyLen; ++i)
 			{
 				encryptionKey[i] = encrypted[N - randKeyLen + i];
 			}
-			for (size_t i = encrypted.size() - randKeyLen-1; i>0; --i)
+			size_t messageSize = N - randKeyLen;
+			for (size_t l = messageSize; l>0; --l)
 			{
-				decrypted[i - 1] = encrypted[i - 1];
-				if (i > 1)
-				{
-					decrypted[i - 1] = xorChar(decrypted[i - 1], encrypted[i - 2]);
-				}
+				size_t i = l-1;
+				decrypted[i] = encrypted[i];
+				
+				// Use the encryption key to decrypt the char at index i
 				for (std::size_t j = randKeyLen; j > 0; --j)
 				{
-					decrypted[i - 1] = xorChar(decrypted[i - 1], encryptionKey[j - 1]);  // Decrypt at runtime
+					decrypted[i] = xorChar(decrypted[i], encryptionKey[j - 1]);  // Decrypt at runtime
+				}
+
+				// Use the char at index i-1 to decrypt the char at index i
+				if (i > 1)
+				{
+					decrypted[i] = xorChar(decrypted[i], encrypted[i - 2]);
+				}
+
+				// Use the char at index i-1 to decrypt the char at index i
+				if (i > 0)
+				{
+					decrypted[i] = xorChar(decrypted[i], encrypted[i - 1]);
+				}
+
+				// Use the char at index i+2 to decrypt the char at index i
+				if (i < messageSize - 2)
+				{
+					decrypted[i] = xorChar(decrypted[i], decrypted[i+2]);
+				}
+
+				// Use the char at index i+1 to decrypt the char at index i
+				if (i < messageSize - 1)
+				{
+					decrypted[i] = xorChar(decrypted[i], decrypted[i+1]);
 				}
 			}
+			decrypted[messageSize] = '\0';  // Null-terminate the string
 			return decrypted;
 		}
 	}

@@ -21,6 +21,33 @@ int main(int argc, char* argv[])
 
 	Log::UI::createConsoleView(Log::UI::ConsoleViewType::nativeConsoleView);
 
+	constexpr auto message = LicenseManager::EncryptedConstant::encrypt_string("6Allo");
+	constexpr size_t offsetSize = 10;
+	std::array<char, message.size()+ offsetSize+ offsetSize> message2{};
+
+	for (int i = 0; i < offsetSize; i++)
+	{
+		message2[i] = 'X';
+	}
+	for (int i = 0; i < message.size(); i++)
+	{
+		message2[i+ offsetSize] = message[i];
+	}
+	for (int i = message.size()+ offsetSize; i < message2.size(); i++)
+	{
+		message2[i] = 'X';
+	}
+
+	for (int i = 0; i < LicenseManager::EncryptedConstant::randKeyLen; i++)
+	{
+		message2[message2.size()- LicenseManager::EncryptedConstant::randKeyLen+i] = message[message.size() - LicenseManager::EncryptedConstant::randKeyLen+i];
+	}
+
+	std::string decrypted = LicenseManager::EncryptedConstant::decrypt_string(message2);
+
+	LicenseManager::Logger::logInfo("Encrypted: " + std::string(message2.begin(), message2.end()));
+	LicenseManager::Logger::logInfo("Decrypted: " + decrypted);
+
 #ifdef CREATE_LICENSE
 	createLicense();
 #else
