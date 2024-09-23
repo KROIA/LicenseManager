@@ -143,7 +143,28 @@ namespace LicenseManager
 			JsonKeys jsonKeys;
 			Messages messages;
 
-			void decrypt();
+			void decrypt()
+			{
+				jsonKeys.version = EncryptedConstant::decrypt_string(EncryptedStrings::JsonKeys::version);
+				jsonKeys.licenseData = EncryptedConstant::decrypt_string(EncryptedStrings::JsonKeys::licenseData);
+				jsonKeys.signature = EncryptedConstant::decrypt_string(EncryptedStrings::JsonKeys::signature);
+				jsonKeys.libraryInfo = EncryptedConstant::decrypt_string(EncryptedStrings::JsonKeys::libraryInfo);
+				jsonKeys.name = EncryptedConstant::decrypt_string(EncryptedStrings::JsonKeys::name);
+
+				messages.errReadingFromFile = EncryptedConstant::decrypt_string(EncryptedStrings::Messages::errReadingFromFile);
+				messages.errOpenSSL = EncryptedConstant::decrypt_string(EncryptedStrings::Messages::errOpenSSL);
+				messages.errGettingRSAKeypair = EncryptedConstant::decrypt_string(EncryptedStrings::Messages::errGettingRSAKeypair);
+				messages.errDuringEncr = EncryptedConstant::decrypt_string(EncryptedStrings::Messages::errDuringEncr);
+				messages.errDuringDecr = EncryptedConstant::decrypt_string(EncryptedStrings::Messages::errDuringDecr);
+				messages.errConvPrivToStr = EncryptedConstant::decrypt_string(EncryptedStrings::Messages::errConvPrivToStr);
+				messages.errConvPubToStr = EncryptedConstant::decrypt_string(EncryptedStrings::Messages::errConvPubToStr);
+				messages.errInvalidPrivKey = EncryptedConstant::decrypt_string(EncryptedStrings::Messages::errInvalidPrivKey);
+				messages.errPubFromPriv = EncryptedConstant::decrypt_string(EncryptedStrings::Messages::errPubFromPriv);
+				messages.errLoadPriv = EncryptedConstant::decrypt_string(EncryptedStrings::Messages::errLoadPriv);
+				messages.errLoadPub = EncryptedConstant::decrypt_string(EncryptedStrings::Messages::errLoadPub);
+				messages.errSign = EncryptedConstant::decrypt_string(EncryptedStrings::Messages::errSign);
+				messages.errSigVerFail = EncryptedConstant::decrypt_string(EncryptedStrings::Messages::errSigVerFail);
+			}
 		};
 
 		const static DecryptedStrings &decryptedStrings();
