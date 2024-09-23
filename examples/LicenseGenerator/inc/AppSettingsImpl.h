@@ -13,6 +13,7 @@ public:
 		setPath("data");
 
 		addGroup(projectGroup);
+		addGroup(generalGroup);
 	}
 
 public:
@@ -29,6 +30,17 @@ public:
 		AppSettings::Setting projectsPath = AppSettings::Setting("projectsPath", "data/projects");
 		AppSettings::Setting lastLoadedProject = AppSettings::Setting("lastLoadedProject", "");
 	};
+	class General : public AppSettings::SettingsGroup
+	{
+	public:
+		General()
+			: SettingsGroup("General")
+		{
+			addSetting(showConsole);
+		}
+
+		AppSettings::Setting showConsole = AppSettings::Setting("showConsole", false);
+	};
 
 	static AppSettingsImpl& instance();
 
@@ -36,6 +48,10 @@ public:
 	static ProjectGroup& getProjectGroup()
 	{
 		return instance().projectGroup;
+	}
+	static General& getGeneralGroup()
+	{
+		return instance().generalGroup;
 	}
 	static void save()
 	{
@@ -48,4 +64,5 @@ public:
 private:
 	
 	ProjectGroup projectGroup;
+	General generalGroup;
 };
