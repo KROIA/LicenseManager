@@ -8,7 +8,6 @@
 #include <QDir>
 
 
-Log::LogObject Project::s_log("Project");
 
 Project::Project()
 {
@@ -116,12 +115,12 @@ bool Project::save(const std::string& path)
 	{
 		file.write(doc.toJson());
 		file.close();
-		s_log.logInfo("Project file saved to: " + projectFile);
+		log().logInfo("Project file saved to: " + projectFile);
 	}
 	else
 	{
 		success = false;
-		s_log.logError("Can't save project file: " + projectFile);
+		log().logError("Can't save project file: " + projectFile);
 	}
 
 	// Save Licenses to file
@@ -133,11 +132,11 @@ bool Project::save(const std::string& path)
 		if (!m_licenses[i]->saveToFile(licenseFile))
 		{
 			success = false;
-			s_log.logError("Can't save license file: " + licenseFile);
+			log().logError("Can't save license file: " + licenseFile);
 		}
 		else
 		{
-			s_log.logInfo("License file saved to: " + licenseFile);
+			log().logInfo("License file saved to: " + licenseFile);
 		}
 	}
 	return success;
@@ -162,7 +161,7 @@ bool Project::load(const std::string& path)
 			QStringList files = dir.entryList(filters, QDir::Files);
 			if (files.size() == 0)
 			{
-				s_log.logError("No project file found in directory: " + path);
+				log().logError("No project file found in directory: " + path);
 				return false;
 			}
 			m_name = files[0].toStdString();
@@ -228,11 +227,11 @@ bool Project::load(const std::string& path)
 			m_entries.push_back(e);
 		}
 		file.close();
-		s_log.logInfo("Project file loaded: " + projectFile);
+		log().logInfo("Project file loaded: " + projectFile);
 	}
 	else
 	{
-		s_log.logError("Can't load project file: " + projectFile);
+		log().logError("Can't load project file: " + projectFile);
 		success = false;
 	}
 
@@ -248,11 +247,11 @@ bool Project::load(const std::string& path)
 		if (license->loadFromFile(licensesPath + "/" + files[i].toStdString()))
 		{
 			m_licenses.push_back(license);
-			s_log.logInfo("License file loaded: " + files[i].toStdString());
+			log().logInfo("License file loaded: " + files[i].toStdString());
 		}
 		else
 		{
-			s_log.logError("Can't load license file: " + files[i].toStdString());
+			log().logError("Can't load license file: " + files[i].toStdString());
 			success = false;
 		}
 	}
@@ -264,4 +263,10 @@ bool Project::load(const std::string& path)
 std::string Project::getProjectFilePath(const std::string& path) const
 {
 	return path + "/" + m_name + "/" + m_name + ".json";
+}
+
+Log::LogObject& Project::log()
+{
+	static Log::LogObject log("Project");
+	return log;
 }

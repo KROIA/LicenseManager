@@ -30,6 +30,8 @@ MainWindow::MainWindow(QWidget *parent)
 	m_projectEditor->hide();
 
 	m_licenseEditor = new LicenseEditor(m_log.getID());
+	Project::log().setParentID(m_log.getID());
+	AppSettings::Logger::setParentID(m_log.getID());
 	ui.licenseEditor_frame->layout()->addWidget(m_licenseEditor);
 	connect(m_licenseEditor, &LicenseEditor::licenseNameChanged, this, &MainWindow::onLicenseEditorLicenseNameChanged);
 
@@ -68,6 +70,16 @@ MainWindow::MainWindow(QWidget *parent)
 
 
 	AppSettingsImpl::load();
+	if (AppSettingsImpl::getGeneralGroup().showConsole.getValue().toBool())
+	{
+		// Use the QTreeConsoleView
+		//Log::UI::createConsoleView(Log::UI::ConsoleViewType::qTreeConsoleView);
+		//Log::UI::getConsoleView<Log::UI::QTreeConsoleView>()->show();
+
+		// Use the QConsoleView
+		Log::UI::createConsoleView(Log::UI::ConsoleViewType::qConsoleView);
+		Log::UI::getConsoleView<Log::UI::QConsoleView>()->show();
+	}
 	QDir().mkpath(AppSettingsImpl::getProjectGroup().projectsPath.getValue().toString());
 
 
@@ -79,7 +91,7 @@ MainWindow::~MainWindow()
 {
 	AppSettingsImpl::save();
 	m_projectEditor->hide();
-	m_projectEditor->deleteLater();
+	m_projectEditor->deleteLater();	
 	delete m_ribbon;
 
 }
@@ -88,6 +100,7 @@ void MainWindow::closeEvent(QCloseEvent* event)
 {
 	m_projectEditor->hide();
 	event->accept();
+	Log::UI::destroyAllConsoleViews();
 }
 
 

@@ -43,6 +43,7 @@ class Project
 	bool load(const std::string& path);
 	std::string getProjectFilePath(const std::string& path) const;
 	
+	static Log::LogObject& log();
 	private:
 	std::string m_name;
 	std::vector<Entry> m_entries;
@@ -54,5 +55,5 @@ class Project
 	std::vector< std::shared_ptr<LicenseManager::License>> m_licenses;
 
 
-	static Log::LogObject s_log;
+	
 };
