@@ -9,6 +9,9 @@
 #include <openssl/err.h>
 
 
+
+#define ENCRYPTED_STRING(x) EncryptedConstant::decrypt_string(EncryptedConstant::encrypt_string(x))
+
 namespace LicenseManager
 {
 	static void print_openssl_error();
@@ -27,7 +30,42 @@ namespace LicenseManager
 	static std::string signature_to_string(const std::string& signature);
 	static std::string string_to_signature(const std::string& base64_signature);
 
+	
+	const License::DecryptedStrings& License::decryptedStrings()
+	{
+		static License::DecryptedStrings decryptedStrings;
+		static bool initialized = false;
+		if (!initialized)
+		{
+			decryptedStrings.decrypt();
+			initialized = true;
+		}
+		return decryptedStrings;
+	}
 
+	// Load all encrypted strings
+	void License::DecryptedStrings::decrypt()
+	{
+		jsonKeys.version = EncryptedConstant::decrypt_string(EncryptedStrings::JsonKeys::version);
+		jsonKeys.licenseData = EncryptedConstant::decrypt_string(EncryptedStrings::JsonKeys::licenseData);
+		jsonKeys.signature = EncryptedConstant::decrypt_string(EncryptedStrings::JsonKeys::signature);
+		jsonKeys.libraryInfo = EncryptedConstant::decrypt_string(EncryptedStrings::JsonKeys::libraryInfo);
+		jsonKeys.name = EncryptedConstant::decrypt_string(EncryptedStrings::JsonKeys::name);
+
+		messages.errReadingFromFile = EncryptedConstant::decrypt_string(EncryptedStrings::Messages::errReadingFromFile);
+		messages.errOpenSSL = EncryptedConstant::decrypt_string(EncryptedStrings::Messages::errOpenSSL);
+		messages.errGettingRSAKeypair = EncryptedConstant::decrypt_string(EncryptedStrings::Messages::errGettingRSAKeypair);
+		messages.errDuringEncr = EncryptedConstant::decrypt_string(EncryptedStrings::Messages::errDuringEncr);
+		messages.errDuringDecr = EncryptedConstant::decrypt_string(EncryptedStrings::Messages::errDuringDecr);
+		messages.errConvPrivToStr = EncryptedConstant::decrypt_string(EncryptedStrings::Messages::errConvPrivToStr);
+		messages.errConvPubToStr = EncryptedConstant::decrypt_string(EncryptedStrings::Messages::errConvPubToStr);
+		messages.errInvalidPrivKey = EncryptedConstant::decrypt_string(EncryptedStrings::Messages::errInvalidPrivKey);
+		messages.errPubFromPriv = EncryptedConstant::decrypt_string(EncryptedStrings::Messages::errPubFromPriv);
+		messages.errLoadPriv = EncryptedConstant::decrypt_string(EncryptedStrings::Messages::errLoadPriv);
+		messages.errLoadPub = EncryptedConstant::decrypt_string(EncryptedStrings::Messages::errLoadPub);
+		messages.errSign = EncryptedConstant::decrypt_string(EncryptedStrings::Messages::errSign);
+		messages.errSigVerFail = EncryptedConstant::decrypt_string(EncryptedStrings::Messages::errSigVerFail);
+	}
 
 	License::License()
 	{
@@ -99,17 +137,17 @@ namespace LicenseManager
 
 		// Additional info about this library
 		QJsonObject libInfo;
-		libInfo["version"] = LibraryInfo::version.toString().c_str();
+		libInfo[decryptedStrings().jsonKeys.version.c_str()] = LibraryInfo::version.toString().c_str();
 		
 		QJsonObject licenseData;
 		for (auto it = m_licenseData.begin(); it != m_licenseData.end(); ++it)
 		{
 			licenseData[it->first.c_str()] = it->second.c_str();
 		}
-		json["licenseData"] = licenseData;
-		json["signature"] = m_signature.c_str();
-		json["libraryInfo"] = libInfo;
-		json["name"] = m_name.c_str();
+		json[decryptedStrings().jsonKeys.licenseData.c_str()] = licenseData;
+		json[decryptedStrings().jsonKeys.signature.c_str()] = m_signature.c_str();
+		json[decryptedStrings().jsonKeys.libraryInfo.c_str()] = libInfo;
+		json[decryptedStrings().jsonKeys.name.c_str()] = m_name.c_str();
 
 
 		QJsonDocument doc(json);
@@ -134,13 +172,13 @@ namespace LicenseManager
 			QJsonObject json = doc.object();
 
 			m_licenseData.clear();
-			QJsonObject licenseDataJson = json["licenseData"].toObject();
+			QJsonObject licenseDataJson = json[decryptedStrings().jsonKeys.licenseData.c_str()].toObject();
 			for(auto it = licenseDataJson.begin(); it != licenseDataJson.end(); ++it)
 			{
 				m_licenseData[it.key().toStdString()] = it.value().toString().toStdString();
 			}
-			m_signature = json["signature"].toString().toStdString();
-			m_name = json["name"].toString().toStdString();
+			m_signature = json[decryptedStrings().jsonKeys.signature.c_str()].toString().toStdString();
+			m_name = json[decryptedStrings().jsonKeys.name.c_str()].toString().toStdString();
 			file.close();
 			m_nameChangedSinceLastSave = false;
 			m_loadedPath = filePath;
@@ -234,7 +272,7 @@ namespace LicenseManager
 			file.close();
 			return true;
 		}
-		Logger::logError("Error writing to file: " + filename);
+		Logger::logError(decryptedStrings().messages.errReadingFromFile + filename);
 		return false;
 	}
 	bool License::readFromFile(const std::string& filename, std::string& data)
@@ -247,7 +285,7 @@ namespace LicenseManager
 			file.close();
 			return true;
 		}
-		Logger::logError("Error reading from file: " + filename);
+		Logger::logError(decryptedStrings().messages.errReadingFromFile + filename);
 		return false;
 	}
 
@@ -270,7 +308,7 @@ namespace LicenseManager
 		char* err = (char*)malloc(130);
 		ERR_load_crypto_strings();
 		ERR_error_string(ERR_get_error(), err);
-		Logger::logError("OpenSSL error: " + std::string(err));
+		Logger::logError(License::decryptedStrings().messages.errOpenSSL + std::string(err));
 		free(err);
 	}
 
@@ -281,7 +319,7 @@ namespace LicenseManager
 		RSA* rsa = RSA_generate_key(key_length, RSA_F4, NULL, NULL);
 		if (!rsa) 
 		{
-			Logger::logError("Error generating RSA keypair!");
+			Logger::logError(License::decryptedStrings().messages.errGettingRSAKeypair);
 			print_openssl_error();
 		}
 		return rsa;
@@ -301,7 +339,7 @@ namespace LicenseManager
 			RSA_PKCS1_PADDING);
 		if (result == -1) 
 		{
-			Logger::logError("Error during encryption!");
+			Logger::logError(License::decryptedStrings().messages.errDuringEncr);
 			print_openssl_error();
 		}
 		else 
@@ -327,7 +365,7 @@ namespace LicenseManager
 			RSA_PKCS1_PADDING);
 		if (result == -1) 
 		{
-			Logger::logError("Error during decryption!");
+			Logger::logError(License::decryptedStrings().messages.errDuringDecr);
 			print_openssl_error();
 		}
 		else
@@ -345,7 +383,7 @@ namespace LicenseManager
 		BIO* bio = BIO_new(BIO_s_mem());
 		if (!PEM_write_bio_RSAPrivateKey(bio, rsa_private_key, NULL, NULL, 0, NULL, NULL)) 
 		{
-			Logger::logError("Error converting private key to string!");
+			Logger::logError(License::decryptedStrings().messages.errConvPrivToStr);
 			print_openssl_error();
 			return "";
 		}
@@ -364,7 +402,7 @@ namespace LicenseManager
 		BIO* bio = BIO_new(BIO_s_mem());
 		if (!PEM_write_bio_RSA_PUBKEY(bio, rsa_public_key)) 
 		{
-			Logger::logError("Error converting public key to string!");
+			Logger::logError(License::decryptedStrings().messages.errConvPubToStr);
 			print_openssl_error();
 			return "";
 		}
@@ -382,14 +420,14 @@ namespace LicenseManager
 	{
 		// Check if the private key is valid
 		if (!rsa_private_key) {
-			Logger::logError("Invalid private key!");
+			Logger::logError(License::decryptedStrings().messages.errInvalidPrivKey);
 			return nullptr;
 		}
 
 		// Create a new RSA structure to hold the public key
 		RSA* rsa_public_key = RSAPublicKey_dup(rsa_private_key);
 		if (!rsa_public_key) {
-			Logger::logError("Error generating public key from private key!");
+			Logger::logError(License::decryptedStrings().messages.errPubFromPriv);
 			print_openssl_error();
 		}
 
@@ -402,7 +440,7 @@ namespace LicenseManager
 		BIO* bio = BIO_new_mem_buf((void*)private_key_str.c_str(), -1);
 		RSA* rsa_private_key = PEM_read_bio_RSAPrivateKey(bio, NULL, NULL, NULL);
 		if (!rsa_private_key) {
-			Logger::logError("Error loading private key from string!");
+			Logger::logError(License::decryptedStrings().messages.errLoadPriv);
 			print_openssl_error();
 		}
 
@@ -416,7 +454,7 @@ namespace LicenseManager
 		BIO* bio = BIO_new_mem_buf((void*)public_key_str.c_str(), -1);
 		RSA* rsa_public_key = PEM_read_bio_RSA_PUBKEY(bio, NULL, NULL, NULL);
 		if (!rsa_public_key) {
-			Logger::logError("Error loading public key from string!");
+			Logger::logError(License::decryptedStrings().messages.errLoadPub);
 			print_openssl_error();
 		}
 
@@ -433,7 +471,7 @@ namespace LicenseManager
 		unsigned int signature_len = 0;
 
 		if (RSA_sign(NID_sha256, hash, SHA256_DIGEST_LENGTH, signature, &signature_len, rsa_private_key) != 1) {
-			Logger::logError("Error signing message!");
+			Logger::logError(License::decryptedStrings().messages.errSign);
 			print_openssl_error();
 			free(signature);
 			return "";
@@ -453,7 +491,7 @@ namespace LicenseManager
 		std::string signature_str = string_to_signature(signature);
 		int result = RSA_verify(NID_sha256, hash, SHA256_DIGEST_LENGTH, (unsigned char*)signature_str.c_str(), signature_str.length(), rsa_public_key);
 		if (result != 1) {
-			Logger::logError("Signature verification failed!");
+			Logger::logError(License::decryptedStrings().messages.errSigVerFail);
 			print_openssl_error();
 			return false;
 		}
