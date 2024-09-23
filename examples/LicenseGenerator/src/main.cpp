@@ -2,10 +2,6 @@
 #include "LicenseManager.h"
 #include "MainWindow.h"
 
-void createLicense();
-void loadLicense();
-std::array<char, 1539080 + 8> fileData{};
-
 int main(int argc, char* argv[])
 {
     QApplication app(argc, argv);
