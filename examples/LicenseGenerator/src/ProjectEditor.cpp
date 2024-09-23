@@ -120,10 +120,13 @@ void ProjectEditor::setProject(std::shared_ptr<Project> project)
 	ui.projectName_lineEdit->setText(QString::fromStdString(m_project->getName()));
 	addEntry(m_project->getEntries());
 	const std::string privateKey = m_project->getPrivateKey();
-	if (!privateKey.empty())
+	if (privateKey.empty())
 		regeneratePrivateKey();
 	else
+	{
 		ui.privateKey_plainTextEdit->setPlainText(QString::fromStdString(privateKey));
+		ui.publicKey_plainTextEdit->setPlainText(QString::fromStdString(m_project->getPublicKey()));
+	}
 }
 std::shared_ptr<Project> ProjectEditor::project()
 {
