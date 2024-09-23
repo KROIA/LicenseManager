@@ -20,7 +20,7 @@ class RibbonImpl : public RibbonWidget::Ribbon
 		struct LicenseButtons
 		{
 			RibbonWidget::RibbonButton* createNewLicense;
-			RibbonWidget::RibbonButton* openLicense;
+			//RibbonWidget::RibbonButton* openLicense;
 			RibbonWidget::RibbonButton* saveLicense;
 		};
 

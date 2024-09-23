@@ -64,6 +64,7 @@ namespace LicenseManager
 	{
 		m_signature = other.m_signature;
 		m_licenseData = other.m_licenseData;
+		m_name = other.m_name;
 		return *this;
 	}
 	bool License::operator==(const License& other) const
@@ -71,6 +72,8 @@ namespace LicenseManager
 		if(m_signature != other.m_signature)
 			return false;
 		if(m_licenseData != other.m_licenseData)
+			return false;
+		if(m_name != other.m_name)
 			return false;
 		return true;
 	}
@@ -80,8 +83,18 @@ namespace LicenseManager
 	}
 
 
-	bool License::saveToFile(const std::string& filename) const
+	bool License::saveToFile(const std::string& filePath) const
 	{
+		if (m_nameChangedSinceLastSave)
+		{
+			// Remove file if name has changed
+			QFile file(m_loadedPath.c_str());
+			if (file.exists())
+			{
+				file.remove();
+			}
+		}
+
 		QJsonObject json;
 
 		// Additional info about this library
@@ -96,12 +109,13 @@ namespace LicenseManager
 		json["licenseData"] = licenseData;
 		json["signature"] = m_signature.c_str();
 		json["libraryInfo"] = libInfo;
+		json["name"] = m_name.c_str();
 
 
 		QJsonDocument doc(json);
 		QByteArray data = doc.toJson();
 
-		QFile file(filename.c_str());
+		QFile file(filePath.c_str());
 		if(file.open(QIODevice::WriteOnly))
 		{
 			file.write(data);
@@ -110,9 +124,9 @@ namespace LicenseManager
 		}
 		return false;
 	}
-	bool License::loadFromFile(const std::string& filename)
+	bool License::loadFromFile(const std::string& filePath)
 	{
-		QFile file(filename.c_str());
+		QFile file(filePath.c_str());
 		if(file.open(QIODevice::ReadOnly))
 		{
 			QByteArray data = file.readAll();
@@ -126,7 +140,10 @@ namespace LicenseManager
 				m_licenseData[it.key().toStdString()] = it.value().toString().toStdString();
 			}
 			m_signature = json["signature"].toString().toStdString();
+			m_name = json["name"].toString().toStdString();
 			file.close();
+			m_nameChangedSinceLastSave = false;
+			m_loadedPath = filePath;
 			return true;
 		}
 		return false;

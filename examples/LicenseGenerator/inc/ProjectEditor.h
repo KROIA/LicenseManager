@@ -6,19 +6,20 @@
 #include "ui_ProjectEditor.h"
 #include "LicenseManager.h"
 #include "Project.h"
+#include "Logger.h"
 
 class ProjectEditor : public QWidget
 {
 	Q_OBJECT
 
 public:
-	ProjectEditor(QWidget *parent = nullptr);
+	ProjectEditor(Log::LoggerID parentLoggerID, QWidget *parent = nullptr);
 	~ProjectEditor();
 
 	void clear();
 
-	void setProject(const Project &project);
-	Project project() const;
+	void setProject(std::shared_ptr<Project> project);
+	std::shared_ptr<Project> project();
 
 signals:
 	void saveProject();
@@ -42,4 +43,8 @@ private:
 		QPushButton* removeButton;
 	};
 	std::vector<Entry> m_entries;
+
+	std::shared_ptr<Project> m_project;
+
+	Log::LogObject m_log;
 };

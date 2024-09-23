@@ -2,10 +2,13 @@
 #include <QPushButton>
 #include <QFrame>
 
-ProjectEditor::ProjectEditor(QWidget *parent)
+ProjectEditor::ProjectEditor(Log::LoggerID parentLoggerID, QWidget *parent)
 	: QWidget(parent)
 {
+	m_project = nullptr;
 	ui.setupUi(this);
+	m_log.setParentID(parentLoggerID);
+	m_log.setName("ProjectEditor");
 
 	m_addNewEntryWidget = ui.addEntry_widget;
 
@@ -107,27 +110,33 @@ void ProjectEditor::clear()
 	ui.privateKey_plainTextEdit->clear();
 }
 
-void ProjectEditor::setProject(const Project &project)
+void ProjectEditor::setProject(std::shared_ptr<Project> project)
 {
 	clear();
-	ui.projectName_lineEdit->setText(QString::fromStdString(project.getName()));
-	addEntry(project.entries());
-	const std::string privateKey = project.getPrivateKey();
+	m_project = project;
+	if(!project)
+		return;
+	
+	ui.projectName_lineEdit->setText(QString::fromStdString(m_project->getName()));
+	addEntry(m_project->getEntries());
+	const std::string privateKey = m_project->getPrivateKey();
 	if (!privateKey.empty())
 		regeneratePrivateKey();
 	else
 		ui.privateKey_plainTextEdit->setPlainText(QString::fromStdString(privateKey));
 }
-Project ProjectEditor::project() const
+std::shared_ptr<Project> ProjectEditor::project()
 {
-	Project project;
-	project.setName(ui.projectName_lineEdit->text().toStdString());
+	if(!m_project)
+		m_project = std::make_shared<Project>();
+	m_project->clearEntries();
+	m_project->setName(ui.projectName_lineEdit->text().toStdString());
 	for (size_t i = 0; i < m_entries.size(); ++i)
 	{
-		project.addEntry(m_entries[i].paramName->text().toStdString(), m_entries[i].paramValue->text().toStdString());
+		m_project->addEntry(m_entries[i].paramName->text().toStdString(), m_entries[i].paramValue->text().toStdString());
 	}
-	project.setPrivateKey(ui.privateKey_plainTextEdit->toPlainText().toStdString());
-	return project;
+	m_project->setPrivateKey(ui.privateKey_plainTextEdit->toPlainText().toStdString());
+	return m_project;
 }
 
 

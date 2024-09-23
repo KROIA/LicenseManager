@@ -37,8 +37,18 @@ namespace LicenseManager
 			return m_signature;
 		}
 
-		bool saveToFile(const std::string& filename) const;
-		bool loadFromFile(const std::string& filename);
+		void setName(const std::string& name)
+		{
+			m_nameChangedSinceLastSave = true;
+			m_name = name;
+		}
+		const std::string& getName() const
+		{
+			return m_name;
+		}
+
+		bool saveToFile(const std::string& filePath) const;
+		bool loadFromFile(const std::string& filePath);
 
 		bool isVerified(const std::string &publicKey) const;
 
@@ -62,6 +72,10 @@ namespace LicenseManager
 
 		std::string m_signature;
 
+		std::string m_name;
 		std::map<std::string, std::string> m_licenseData;		
+
+		bool m_nameChangedSinceLastSave = false;
+		std::string m_loadedPath;
 	};
 }
