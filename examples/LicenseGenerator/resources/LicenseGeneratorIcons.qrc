@@ -8,5 +8,6 @@
         <file>icons/save.png</file>
         <file>icons/cancel.png</file>
         <file>icons/delete.png</file>
+        <file>icons/add_license.png</file>
     </qresource>
 </RCC>

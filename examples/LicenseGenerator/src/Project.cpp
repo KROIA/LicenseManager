@@ -7,6 +7,9 @@
 #include <QFileInfo>
 #include <QDir>
 
+
+Log::LogObject Project::s_log("Project");
+
 Project::Project()
 {
 }
@@ -18,6 +21,7 @@ Project::~Project()
 void Project::clear()
 {
 	m_entries.clear();
+	m_licenses.clear();
 }
 
 void Project::addEntry(const std::string& paramName, const std::string& paramValue)
@@ -43,9 +47,46 @@ void Project::createPrivateKey()
 	m_privateKey = LicenseManager::License::generatePrivateKey();
 	m_publicKey = LicenseManager::License::getPublicKeyFromPrivateKey(m_privateKey);
 }
-
-bool Project::save(const std::string& filename)
+void Project::addLicense(std::shared_ptr<LicenseManager::License> license)
 {
+	for(size_t i=0; i<m_licenses.size(); ++i)
+	{
+		if (m_licenses[i]->getName() == license->getName())
+		{
+			m_licenses[i] = license;
+			return;
+		}
+	}
+	license->signLicense(m_privateKey);
+	m_licenses.push_back(license);
+}
+void Project::setLicenses(const std::vector<std::shared_ptr<LicenseManager::License>>& licenses)
+{
+	m_licenses = licenses;
+}
+
+void Project::removeLicense(const std::string& signature)
+{
+	for (size_t i = 0; i < m_licenses.size(); ++i)
+	{
+		if (m_licenses[i]->getSignature() == signature)
+		{
+			m_licenses.erase(m_licenses.begin() + i);
+			break;
+		}
+	}
+}
+
+bool Project::save(const std::string& path)
+{
+	bool success = true;
+	std::string projectPath = path + "/" + m_name;
+	std::string projectFile = projectPath + "/" + m_name + ".json";
+	std::string licensesPath = projectPath + "/licenses";
+	QDir().mkpath(projectPath.c_str());
+	QDir().mkpath(licensesPath.c_str());
+
+	// Save Project settings to file
 	QJsonObject json;
 	json["name"] = QString::fromStdString(m_name);
 	json["privateKey"] = QString::fromStdString(m_privateKey);
@@ -63,23 +104,109 @@ bool Project::save(const std::string& filename)
 
 
 	// Create Path if it does not exist
-	QFileInfo fileInfo(QString::fromStdString(filename));
+	
+	QFileInfo fileInfo(QString::fromStdString(projectFile));
 	QDir().mkpath(fileInfo.absolutePath());
 
 
 	QJsonDocument doc(json);
-	QFile file(QString::fromStdString(filename));
-	if (file.open(QIODevice::WriteOnly))
+	QFile file(QString::fromStdString(projectFile));
+	bool fop = file.open(QIODevice::WriteOnly);
+	if (fop)
 	{
 		file.write(doc.toJson());
 		file.close();
-		return true;
+		s_log.logInfo("Project file saved to: " + projectFile);
 	}
-	return false;
+	else
+	{
+		success = false;
+		s_log.logError("Can't save project file: " + projectFile);
+	}
+
+	// Save Licenses to file
+	for(size_t i = 0; i < m_licenses.size(); ++i)
+	{
+		m_licenses[i]->signLicense(m_privateKey);
+		std::string fileName = m_licenses[i]->getName() + ".lic";
+		std::string licenseFile = licensesPath + "/"+ fileName;
+		if (!m_licenses[i]->saveToFile(licenseFile))
+		{
+			success = false;
+			s_log.logError("Can't save license file: " + licenseFile);
+		}
+		else
+		{
+			s_log.logInfo("License file saved to: " + licenseFile);
+		}
+	}
+	return success;
 }
-bool Project::load(const std::string& filename)
+bool Project::load(const std::string& path)
 {
-	QFile file(QString::fromStdString(filename));
+	bool success = true;
+	std::string projectPath = path;
+
+	// Check if the path is a directory or a file
+	QFileInfo fileInfo(QString::fromStdString(path));
+	if (fileInfo.isDir())
+	{
+		// extract project name from path
+		size_t pos = path.find_last_of("/\\");
+		if (pos == std::string::npos)
+		{
+			// Search for any json file in the directory
+			QDir dir(QString::fromStdString(path));
+			QStringList filters;
+			filters << "*.json";
+			QStringList files = dir.entryList(filters, QDir::Files);
+			if (files.size() == 0)
+			{
+				s_log.logError("No project file found in directory: " + path);
+				return false;
+			}
+			m_name = files[0].toStdString();
+		}
+		else
+		{
+			m_name = path.substr(pos + 1);
+		}
+	}
+	else
+	{
+		// Remove the file name from the path
+		size_t pos = projectPath.find_last_of("/\\");
+		if (pos != std::string::npos)
+		{
+			projectPath = projectPath.substr(0, pos);
+		}
+		// extract project name from file name
+		pos = path.find_last_of("/\\");
+		if (pos == std::string::npos)
+		{
+			m_name = path;
+		}
+		else
+		{
+			m_name = path.substr(pos + 1);
+		}
+	}
+
+
+	// Remove the extention from the name
+	size_t dotPos = m_name.find_last_of(".");
+	if (dotPos != std::string::npos)
+	{
+		m_name = m_name.substr(0, dotPos);
+	}
+
+	
+	
+	std::string projectFile = projectPath + "/" + m_name + ".json";
+	std::string licensesPath = projectPath + "/licenses";
+
+
+	QFile file(QString::fromStdString(projectFile));
 	if (file.open(QIODevice::ReadOnly))
 	{
 		QJsonDocument doc = QJsonDocument::fromJson(file.readAll());
@@ -101,8 +228,40 @@ bool Project::load(const std::string& filename)
 			m_entries.push_back(e);
 		}
 		file.close();
-		return true;
+		s_log.logInfo("Project file loaded: " + projectFile);
 	}
-	return false;
+	else
+	{
+		s_log.logError("Can't load project file: " + projectFile);
+		success = false;
+	}
+
+	// Load Licenses from file
+	QDir dir(QString::fromStdString(licensesPath));
+	QStringList filters;
+	filters << "*.lic";
+	QStringList files = dir.entryList(filters, QDir::Files);
+	m_licenses.clear();
+	for (int i = 0; i < files.size(); ++i)
+	{
+		std::shared_ptr<LicenseManager::License> license = std::make_shared<LicenseManager::License>();
+		if (license->loadFromFile(licensesPath + "/" + files[i].toStdString()))
+		{
+			m_licenses.push_back(license);
+			s_log.logInfo("License file loaded: " + files[i].toStdString());
+		}
+		else
+		{
+			s_log.logError("Can't load license file: " + files[i].toStdString());
+			success = false;
+		}
+	}
+	
+	return success;
 }
 
+
+std::string Project::getProjectFilePath(const std::string& path) const
+{
+	return path + "/" + m_name + "/" + m_name + ".json";
+}
