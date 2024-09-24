@@ -19,6 +19,8 @@ int main(int argc, char* argv[])
 
 	Log::UI::createConsoleView(Log::UI::ConsoleViewType::nativeConsoleView);
 
+
+	std::string t = LicenseManager::EncryptedConstant::decrypt_string(LicenseManager::EncryptedConstant::encrypt_string("TEST"));
 	createKeys();
 	createLicense();
 	validateLicense();
