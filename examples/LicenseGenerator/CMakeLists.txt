@@ -37,8 +37,8 @@ set(APP_ICON "${CMAKE_CURRENT_SOURCE_DIR}/AppIcon.rc")  # Set the icon for the a
 list(APPEND ADDITONAL_SOURCES ${APP_ICON})               
 
 ## USER_SECTION_START 3
-include(RibbonWidget.cmake)
-include(AppSettings.cmake)
+include(dependencies/RibbonWidget.cmake)
+include(dependencies/AppSettings.cmake)
 ## USER_SECTION_END
 
 list(APPEND ADDITIONAL_LIBRARIES ${DEPENDENCIES_FOR_STATIC_LIB}) 
