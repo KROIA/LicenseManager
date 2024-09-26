@@ -41,7 +41,7 @@ include(dependencies/RibbonWidget.cmake)
 include(dependencies/AppSettings.cmake)
 ## USER_SECTION_END
 
-list(APPEND ADDITIONAL_LIBRARIES ${DEPENDENCIES_FOR_STATIC_LIB}) 
+list(APPEND ADDITIONAL_LIBRARIES ) 
 
 ## USER_SECTION_START 4
 

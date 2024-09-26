@@ -46,7 +46,7 @@ set_if_not_defined(QT_DEPLOY ON)	            # <AUTO_REPLACED>
 
 # Needed QT modules                             # <AUTO_REPLACED> 
 set(QT_MODULES
-    Core
+  Core
 )
 
 # Library file name settings
@@ -82,14 +82,10 @@ set_if_not_defined(COMPILE_UNITTESTS ON)					# <AUTO_REPLACED>
 #       Do not use them in headers which are visible by the user of the library.
 # Example:
 # list(APPEND USER_SPECIFIC_DEFINES 
-#    "TEST_DEFINE"
+#    TEST_DEFINE
 # )
 # 
-list(APPEND USER_SPECIFIC_DEFINES 
-## USER_SECTION_START 9
-    
-## USER_SECTION_END
-)
+list(APPEND USER_SPECIFIC_DEFINES)
 
 
 ## USER_SECTION_START 3
