@@ -4,7 +4,7 @@ include(FetchContent)
 function(dep LIBRARY_MACRO_NAME SHARED_LIB STATIC_LIB STATIC_PROFILE_LIB)
     # Define the git repository and tag to download from
     set(LIB_NAME LicenseManager)
-	set(LIB_MACRO_NAME LICENSE_MANAGER)
+	set(LIB_MACRO_NAME LICENSE_MANAGER_LIBRARY_AVAILABLE)
     set(GIT_REPO https://github.com/KROIA/LicenseManager.git)
     set(GIT_TAG main)
 
