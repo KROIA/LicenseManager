@@ -29,7 +29,7 @@ namespace LicenseManager
 
 /// USER_SECTION_END
 
-	class LICENSE_MANAGER_EXPORT LibraryInfo
+	class LICENSE_MANAGER_API LibraryInfo
 	{
 		LibraryInfo() = delete;
 		LibraryInfo(const LibraryInfo&) = delete;

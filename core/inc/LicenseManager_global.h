@@ -11,13 +11,13 @@
 #ifndef BUILD_STATIC
 	//#pragma message("LICENSEMANAGER_LIB is a shared library")
 	#if defined(LICENSEMANAGER_LIB)
-		#define LICENSE_MANAGER_EXPORT __declspec(dllexport)
+		#define LICENSE_MANAGER_API __declspec(dllexport)
 	#else
-		#define LICENSE_MANAGER_EXPORT __declspec(dllimport)
+		#define LICENSE_MANAGER_API __declspec(dllimport)
 	#endif
 #else 
 	//#pragma message("LICENSEMANAGER_LIB is a static library")
-	#define LICENSE_MANAGER_EXPORT
+	#define LICENSE_MANAGER_API
 #endif
 
 /// USER_SECTION_START 2

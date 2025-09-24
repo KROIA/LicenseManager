@@ -89,7 +89,7 @@ namespace LicenseManager
 /// USER_SECTION_START 4
 
 /// USER_SECTION_END
-	class LICENSE_MANAGER_EXPORT Profiler
+	class LICENSE_MANAGER_API Profiler
 	{
 	public:
 		/// USER_SECTION_START 5
@@ -112,7 +112,7 @@ namespace LicenseManager
 
 
 #if LOGGER_LIBRARY_AVAILABLE == 1
-	class LICENSE_MANAGER_EXPORT Logger 
+	class LICENSE_MANAGER_API Logger 
 	{
 		/// USER_SECTION_START 8
 
