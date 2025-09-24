@@ -7,7 +7,7 @@
 
 namespace LicenseManager
 {
-	class LICENSE_MANAGER_EXPORT License
+	class LICENSE_MANAGER_API License
 	{
 	public:
 		License();
