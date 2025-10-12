@@ -41,10 +41,10 @@ include(dependencies/RibbonWidget.cmake)
 include(dependencies/AppSettings.cmake)
 ## USER_SECTION_END
 
-list(APPEND ADDITIONAL_LIBRARIES ) 
+list(APPEND ADDITIONAL_LIBRARIES) 
 
 ## USER_SECTION_START 4
-
+list(APPEND ADDITIONAL_LIBRARIES AppSettings_static RibbonWidget_static) 
 ## USER_SECTION_END
 
 ## Do not change the first 2 parameters             

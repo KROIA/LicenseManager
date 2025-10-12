@@ -22,7 +22,12 @@ MainWindow::MainWindow(QWidget *parent)
 {
 	m_currentProject = nullptr;
 	ui.setupUi(this);
-	m_ribbon = new RibbonImpl(ui.ribbon_widget);
+	QToolBar* toolbar = new QToolBar(this);
+	toolbar->setMovable(false);
+	toolbar->setIconSize(QSize(32, 32));
+	toolbar->setMinimumHeight(150);
+	m_ribbon = new RibbonImpl(toolbar);
+	addToolBar(toolbar);
 	setWindowTitle("License Generator");
 	m_log.setName(windowTitle().toStdString());
 

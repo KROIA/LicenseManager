@@ -1,7 +1,7 @@
 #include "RibbonImpl.h"
 
 
-RibbonImpl::RibbonImpl(QWidget* parent)
+RibbonImpl::RibbonImpl(QToolBar* parent)
 	: RibbonWidget::Ribbon(parent)
 {
 	Q_INIT_RESOURCE(RibbonIcons); // Init the resource file

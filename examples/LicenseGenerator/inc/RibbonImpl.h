@@ -6,7 +6,7 @@ class RibbonImpl : public RibbonWidget::Ribbon
 {
 	Q_OBJECT
 	public:
-		RibbonImpl(QWidget* parent = nullptr);
+		RibbonImpl(QToolBar* parent = nullptr);
 
 
 	

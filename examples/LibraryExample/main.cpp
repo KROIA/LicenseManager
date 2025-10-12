@@ -18,10 +18,11 @@ int main(int argc, char* argv[])
     QCoreApplication app(argc, argv);
 
 	Log::UI::createConsoleView(Log::UI::ConsoleViewType::nativeConsoleView);
+	Log::UI::getConsoleView<Log::UI::NativeConsoleView>()->show();
 
-	createKeys();
-	createLicense();
-	validateLicense();
+	//createKeys();
+	//createLicense();
+	//validateLicense();
 	correctImplementationInYourApplication();
 
 	LicenseManager::Logger::logInfo("done");
@@ -115,13 +116,13 @@ void correctImplementationInYourApplication()
 	// Use an binary encrypted public key
 	constexpr auto encryptedPublicKey = LicenseManager::EncryptedConstant::encrypt_string(
 		"-----BEGIN PUBLIC KEY-----\n"
-		"MIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8AMIIBCgKCAQEA1o/tXYhx89lPvwDgePsp\n"
-		"6kNyMpUdnZqsrr+9lzbCQ4EVtCjIpbv+sKP5sZ6REi9/dshH4xV/Gbh4RhbdwrC9\n"
-		"EtlIuss4zagfpYnuRFIrVDIMV5VDmyU0WOzC75XAa/65z8iXSj8aZCCsq0FJ9y6y\n"
-		"5s4VO/wfuZ+DjCB10KGijzXjcxnULKZdhSILq1srTUzw433c+fag3A+l7hrHNaKO\n"
-		"rbOX9MrjTuoqNt4qNsIw97NP+Ptu+of4Dl0S89II+fXxATBJLbSKMOlOt4d20YOb\n"
-		"SZetkHpCNRNjejBMuO9k5+Uec1v/Ukjolwr3OzkxnBEpxtIm2fwKRP++LPxk4B42\n"
-		"RQIDAQAB\n"
+		"MIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8AMIIBCgKCAQEA2bHIM+QgoZayZLqwTwfr\n"
+		"tEKd5/gXZ66j6eMqSvLN+3TiXWjHoZkLZR3ps8Ceh0bgNC2s45iHBlBcF+hQHA74\n"
+		"LheXixwLeaafA4qv+qY9lvBHEbBiTHiTHNZ9XGjtadvdkvfbHCzQBG+rBLUg0kP4\n"
+		"WXeHRA+ENe6qdlM6T9tPsErcqQrgWyTKB8VDBr5b6ve7TPu+2nuX7K4+rJmzh9fU\n"
+		"1INoQStMwTa6T2O4dTN34+ejn03EkogcU2v6fWjr9OgCTOWgHoPRssBPYk0P6UPR\n"
+		"iBOE/pRifAEvW+cR6tt8Ra+yKJd3o4MKWxMpyE/niL2Zq31YmHh3n7tT5+FdJrGf\n"
+		"awIDAQAB\n"
 		"-----END PUBLIC KEY-----\n");
 
 	LicenseManager::License license;
@@ -136,9 +137,11 @@ void correctImplementationInYourApplication()
 	if (license.isVerified(decryptedPublicKey))
 	{
 		// Readout the license data
+		LicenseManager::Logger::logInfo("License verified");
 	}
 	else
 	{
+		LicenseManager::Logger::logInfo("License not verified");
 		// The license is not verified
 		// The license data can't be trusted
 		// In this example code, the license is not verified because the public key is not the same as the one used to sign the license
