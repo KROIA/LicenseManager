@@ -167,9 +167,10 @@ namespace LicenseManager
 		return widget;
 	}
 #else
-	QWidget* LibraryInfo::createInfoWidget(QWidget* parent)
+	QWidget* LibraryInfo::createInfoWidget(QWidget* parent, bool disableHyperlink)
 	{
 		LM_UNUSED(parent);
+		LM_UNUSED(disableHyperlink);
 		return nullptr;
 	}
 #endif
