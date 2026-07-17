@@ -5,6 +5,7 @@
 #include <array>
 #include <type_traits>
 #include <utility>
+#include <cstdint>
 
 void createKeys();
 void createLicense();
@@ -12,6 +13,15 @@ void validateLicense();
 void correctImplementationInYourApplication();
 
 std::string s_publicKey;
+
+// Choose which hardware components make up the node-lock fingerprint and an
+// application-specific salt. The SAME selection and salt must be used when the
+// license is created (issuer side) and when it is validated (client side).
+static const std::uint32_t s_hwComponents =
+	LicenseManager::HardwareId::VolumeSerial |
+	LicenseManager::HardwareId::MachineGuid  |
+	LicenseManager::HardwareId::CpuInfo;
+static const std::string s_hwSalt = "LibraryExample-2026";
 
 int main(int argc, char* argv[])
 {
@@ -62,7 +72,19 @@ void createLicense()
 	// Set the license data
 	license.setLicenseData(licenseData);
 
-	// Sign the license using the private key
+	// Node-lock the license to THIS machine (the issuer would instead use the
+	// hardware id sent by the customer during activation). An empty fingerprint
+	// would mean "not node-locked".
+	std::string hwId = LicenseManager::HardwareId::generate(s_hwComponents, s_hwSalt);
+	license.setHardwareId(hwId);
+	LicenseManager::Logger::logInfo("Bound to hardware id: " + hwId);
+
+	// Optional validity window (ISO-8601). Empty bounds mean "unbounded".
+	license.setValidFrom("2025-01-01");
+	license.setValidUntil("2026-12-31");
+
+	// Sign the license using the private key. Everything above (data, name,
+	// hardware id and validity window) is covered by the signature.
 	license.signLicense(privateKey);
 	LicenseManager::Logger::logInfo("License signature:\n"+license.getSignature());
 
@@ -133,17 +155,38 @@ void correctImplementationInYourApplication()
 	// Use the decrypt function to get the public key
 	std::string decryptedPublicKey = LicenseManager::EncryptedConstant::decrypt_string(encryptedPublicKey);
 
-	// Verify the license
-	if (license.isVerified(decryptedPublicKey))
+	// Fingerprint of the machine we are running on, using the same selection and
+	// salt that were used when the license was issued.
+	std::string currentHwId = LicenseManager::HardwareId::generate(s_hwComponents, s_hwSalt);
+
+	// Full check: signature + node-lock + validity window. Prefer this over the
+	// signature-only isVerified().
+	using VR = LicenseManager::License::VerificationResult;
+	VR result = license.check(decryptedPublicKey, currentHwId);
+
+	LicenseManager::Logger::logInfo("License check: " + LicenseManager::License::toString(result));
+
+	if (result == VR::valid)
 	{
-		// Readout the license data
-		LicenseManager::Logger::logInfo("License verified");
+		// Advanced anti-patch pattern: instead of trusting a boolean that an
+		// attacker can flip, derive a value FROM the verified license and use it
+		// where the program genuinely needs it. If verification is bypassed, this
+		// value is wrong and the dependent feature silently breaks.
+		std::string featureKey = license.deriveSecret(decryptedPublicKey, "premium-feature-unlock");
+
+		// Fold in the live anti-tamper state so the derived value is also wrong
+		// under a debugger. Call such checks from several places, not just here.
+		std::uint64_t guard = LicenseManager::AntiTamper::guardToken(
+			LicenseManager::AntiTamper::checksumRange(featureKey.data(), featureKey.size()),
+			"premium-feature-unlock");
+
+		LicenseManager::Logger::logInfo("License valid. Feature key (use as decryption key/seed): " + featureKey);
+		LicenseManager::Logger::logInfo("Guard token: " + std::to_string(guard));
 	}
 	else
 	{
-		LicenseManager::Logger::logInfo("License not verified");
-		// The license is not verified
-		// The license data can't be trusted
-		// In this example code, the license is not verified because the public key is not the same as the one used to sign the license
+		// The license data can't be trusted. Do not just log-and-continue in a
+		// real app; make the failure feed into the derived-secret path above.
+		LicenseManager::Logger::logError("License not valid: " + LicenseManager::License::toString(result));
 	}
 }
