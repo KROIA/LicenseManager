@@ -4,9 +4,12 @@
 #include <QFile>
 #include <QByteArray>
 
-#include <openssl/rsa.h>
+#include <openssl/evp.h>
 #include <openssl/pem.h>
 #include <openssl/err.h>
+#include <openssl/rsa.h>
+
+#include <vector>
 
 
 
@@ -15,22 +18,19 @@
 namespace LicenseManager
 {
 	static void print_openssl_error();
-	static RSA* generate_RSA_keypair();
-	static std::string encrypt_with_private_key(RSA* rsa_private_key, const std::string& plaintext);
-	static std::string decrypt_with_public_key(RSA* rsa_public_key, const std::string& encrypted);
-	static std::string private_key_to_string(RSA* rsa_private_key);
-	static std::string public_key_to_string(RSA* rsa_public_key);
-	static RSA* generate_public_key_from_private(RSA* rsa_private_key);
-	static RSA* load_private_key_from_string(const std::string& private_key_str);
-	static RSA* load_public_key_from_string(const std::string& public_key_str);
-	static std::string sign_message(RSA* rsa_private_key, const std::string& message);
-	static bool verify_signature(RSA* rsa_public_key, const std::string& message, const std::string& signature);
+	static EVP_PKEY* generate_rsa_keypair();
+	static std::string private_key_to_string(EVP_PKEY* pkey);
+	static std::string public_key_to_string(EVP_PKEY* pkey);
+	static EVP_PKEY* load_private_key_from_string(const std::string& private_key_str);
+	static EVP_PKEY* load_public_key_from_string(const std::string& public_key_str);
+	static std::string sign_message(EVP_PKEY* pkey, const std::string& message);
+	static bool verify_signature(EVP_PKEY* pkey, const std::string& message, const std::string& signature);
 	static std::string base64_encode(const std::string& binary_data);
 	static std::string base64_decode(const std::string& base64_data);
 	static std::string signature_to_string(const std::string& signature);
 	static std::string string_to_signature(const std::string& base64_signature);
 
-	
+
 	const License::DecryptedStrings& License::decryptedStrings()
 	{
 		static License::DecryptedStrings decryptedStrings;
@@ -45,24 +45,10 @@ namespace LicenseManager
 
 	License::License()
 	{
-		class Initializer
-		{
-			public:
-			Initializer()
-			{
-				// Initialize OpenSSL
-				OpenSSL_add_all_algorithms();
-				ERR_load_crypto_strings();
-			}
-			~Initializer()
-			{
-				// Cleanup OpenSSL
-				EVP_cleanup();
-				ERR_free_strings();
-			}
-		};
-		static Initializer init;
-
+		// OpenSSL 3.x auto-initializes on first use and cleans up at process exit.
+		// The legacy OpenSSL_add_all_algorithms / ERR_load_crypto_strings /
+		// EVP_cleanup / ERR_free_strings calls are no-ops (and deprecated) — the
+		// old Initializer type is gone entirely.
 	}
 	License::License(const License& other)
 	{
@@ -114,7 +100,7 @@ namespace LicenseManager
 		// Additional info about this library
 		QJsonObject libInfo;
 		libInfo[decryptedStrings().jsonKeys.version.c_str()] = LibraryInfo::version.toString().c_str();
-		
+
 		QJsonObject licenseData;
 		for (auto it = m_licenseData.begin(); it != m_licenseData.end(); ++it)
 		{
@@ -164,24 +150,22 @@ namespace LicenseManager
 	}
 	bool License::isVerified(const std::string& publicKey) const
 	{
-		RSA* pubKey = load_public_key_from_string(publicKey);
+		EVP_PKEY* pubKey = load_public_key_from_string(publicKey);
 		if(!pubKey)
 			return false;
 		std::string dataString = getDataString();
 		bool isVerified = verify_signature(pubKey, dataString, m_signature);
-		RSA_free(pubKey);
+		EVP_PKEY_free(pubKey);
 		return isVerified;
 	}
 
 	bool License::signLicense(const std::string& privateKey)
 	{
-		RSA* privKey = load_private_key_from_string(privateKey);
+		EVP_PKEY* privKey = load_private_key_from_string(privateKey);
 		if(!privKey)
 			return false;
 		m_signature = sign_message(privKey, getDataString());
-		RSA* pubKey = generate_public_key_from_private(privKey);
-		RSA_free(privKey);
-		RSA_free(pubKey);
+		EVP_PKEY_free(privKey);
 		return true;
 	}
 	bool License::signLicenseFromFile(const std::string& privateKeyFile)
@@ -195,30 +179,30 @@ namespace LicenseManager
 	}
 	std::string License::generatePrivateKey()
 	{
-		// Generate RSA key pair
-		RSA* rsa_keypair = generate_RSA_keypair();
-
-		RSA* private_key = RSAPrivateKey_dup(rsa_keypair);
-		std::string privateKeyPEM = private_key_to_string(private_key);
-		RSA_free(private_key);
-		RSA_free(rsa_keypair);
+		EVP_PKEY* keypair = generate_rsa_keypair();
+		if(!keypair)
+			return "";
+		std::string privateKeyPEM = private_key_to_string(keypair);
+		EVP_PKEY_free(keypair);
 		return privateKeyPEM;
 	}
 	std::string License::getPublicKeyFromPrivateKey(const std::string& privateKeyPEM)
 	{
-		RSA* privateKey = load_private_key_from_string(privateKeyPEM);
-		RSA* pubKey = generate_public_key_from_private(privateKey);
-
-		std::string publicKeyPEM = public_key_to_string(pubKey);
-		RSA_free(pubKey);
-		RSA_free(privateKey);
+		EVP_PKEY* privateKey = load_private_key_from_string(privateKeyPEM);
+		if(!privateKey)
+			return "";
+		// EVP_PKEY holds both halves; PEM_write_bio_PUBKEY emits just the public part.
+		std::string publicKeyPEM = public_key_to_string(privateKey);
+		EVP_PKEY_free(privateKey);
 		return publicKeyPEM;
 	}
 	std::string License::signMessage(const std::string& privateKey, const std::string& message)
 	{
-		RSA* rsa = load_private_key_from_string(privateKey);
-		std::string signature = sign_message(rsa, message);
-		RSA_free(rsa);
+		EVP_PKEY* pkey = load_private_key_from_string(privateKey);
+		if(!pkey)
+			return "";
+		std::string signature = sign_message(pkey, message);
+		EVP_PKEY_free(pkey);
 		return signature;
 	}
 
@@ -279,203 +263,190 @@ namespace LicenseManager
 	}
 
 
-	void print_openssl_error() 
+	void print_openssl_error()
 	{
-		char* err = (char*)malloc(130);
-		ERR_load_crypto_strings();
-		ERR_error_string(ERR_get_error(), err);
+		char err[256];
+		ERR_error_string_n(ERR_get_error(), err, sizeof(err));
 		Logger::logError(License::decryptedStrings().messages.errOpenSSL + std::string(err));
-		free(err);
 	}
 
-	// Function to generate RSA key pair
-	RSA* generate_RSA_keypair()
+	// Generate a 2048-bit RSA key pair via the EVP API (RSA_generate_key* is
+	// deprecated in OpenSSL 3.x and removed in 4.x).
+	EVP_PKEY* generate_rsa_keypair()
 	{
-		int key_length = 2048;
-		RSA* rsa = RSA_generate_key(key_length, RSA_F4, NULL, NULL);
-		if (!rsa) 
+		EVP_PKEY_CTX* ctx = EVP_PKEY_CTX_new_id(EVP_PKEY_RSA, nullptr);
+		if(!ctx)
 		{
 			Logger::logError(License::decryptedStrings().messages.errGettingRSAKeypair);
 			print_openssl_error();
+			return nullptr;
 		}
-		return rsa;
-	}
 
-	// Function to encrypt text using private key
-	std::string encrypt_with_private_key(RSA* rsa_private_key, const std::string& plaintext)
-	{
-		std::string encrypted;
-		int rsa_size = RSA_size(rsa_private_key);
-		unsigned char* encrypted_text = (unsigned char*)malloc(rsa_size);
-
-		int result = RSA_private_encrypt(plaintext.length(),
-			(unsigned char*)plaintext.c_str(),
-			encrypted_text,
-			rsa_private_key,
-			RSA_PKCS1_PADDING);
-		if (result == -1) 
+		EVP_PKEY* pkey = nullptr;
+		if(EVP_PKEY_keygen_init(ctx) <= 0
+		   || EVP_PKEY_CTX_set_rsa_keygen_bits(ctx, 2048) <= 0
+		   || EVP_PKEY_keygen(ctx, &pkey) <= 0)
 		{
-			Logger::logError(License::decryptedStrings().messages.errDuringEncr);
+			Logger::logError(License::decryptedStrings().messages.errGettingRSAKeypair);
 			print_openssl_error();
-		}
-		else 
-		{
-			encrypted.assign((char*)encrypted_text, result);
+			EVP_PKEY_CTX_free(ctx);
+			return nullptr;
 		}
 
-		free(encrypted_text);
-		return encrypted;
+		EVP_PKEY_CTX_free(ctx);
+		return pkey;
 	}
 
-	// Function to decrypt text using public key
-	std::string decrypt_with_public_key(RSA* rsa_public_key, const std::string& encrypted) 
-	{
-		std::string decrypted;
-		int rsa_size = RSA_size(rsa_public_key);
-		unsigned char* decrypted_text = (unsigned char*)malloc(rsa_size);
-
-		int result = RSA_public_decrypt(encrypted.length(),
-			(unsigned char*)encrypted.c_str(),
-			decrypted_text,
-			rsa_public_key,
-			RSA_PKCS1_PADDING);
-		if (result == -1) 
-		{
-			Logger::logError(License::decryptedStrings().messages.errDuringDecr);
-			print_openssl_error();
-		}
-		else
-		{
-			decrypted.assign((char*)decrypted_text, result);
-		}
-
-		free(decrypted_text);
-		return decrypted;
-	}
-
-	// Convert RSA private key to string (PEM format)
-	std::string private_key_to_string(RSA* rsa_private_key)
+	// Write private key as PKCS#8 PEM ("-----BEGIN PRIVATE KEY-----").
+	// PEM_write_bio_PrivateKey is the modern replacement for
+	// PEM_write_bio_RSAPrivateKey; existing PKCS#1 keys still load via
+	// PEM_read_bio_PrivateKey (see load_private_key_from_string) so old keys
+	// stay compatible.
+	std::string private_key_to_string(EVP_PKEY* pkey)
 	{
 		BIO* bio = BIO_new(BIO_s_mem());
-		if (!PEM_write_bio_RSAPrivateKey(bio, rsa_private_key, NULL, NULL, 0, NULL, NULL)) 
+		if (!PEM_write_bio_PrivateKey(bio, pkey, nullptr, nullptr, 0, nullptr, nullptr))
 		{
 			Logger::logError(License::decryptedStrings().messages.errConvPrivToStr);
 			print_openssl_error();
+			BIO_free(bio);
 			return "";
 		}
 
-		char* key_data = NULL;
-		size_t key_length = BIO_get_mem_data(bio, &key_data);
+		char* key_data = nullptr;
+		long key_length = BIO_get_mem_data(bio, &key_data);
 		std::string private_key_str(key_data, key_length);
 
 		BIO_free(bio);
 		return private_key_str;
 	}
 
-	// Convert RSA public key to string (PEM format)
-	std::string public_key_to_string(RSA* rsa_public_key)
+	// Write public key as SubjectPublicKeyInfo PEM ("-----BEGIN PUBLIC KEY-----"),
+	// same format as the legacy PEM_write_bio_RSA_PUBKEY produced.
+	std::string public_key_to_string(EVP_PKEY* pkey)
 	{
 		BIO* bio = BIO_new(BIO_s_mem());
-		if (!PEM_write_bio_RSA_PUBKEY(bio, rsa_public_key)) 
+		if (!PEM_write_bio_PUBKEY(bio, pkey))
 		{
 			Logger::logError(License::decryptedStrings().messages.errConvPubToStr);
 			print_openssl_error();
+			BIO_free(bio);
 			return "";
 		}
 
-		char* key_data = NULL;
-		size_t key_length = BIO_get_mem_data(bio, &key_data);
+		char* key_data = nullptr;
+		long key_length = BIO_get_mem_data(bio, &key_data);
 		std::string public_key_str(key_data, key_length);
 
 		BIO_free(bio);
 		return public_key_str;
 	}
 
-	// Function to generate RSA public key from private key
-	RSA* generate_public_key_from_private(RSA* rsa_private_key)
+	// PEM_read_bio_PrivateKey accepts both PKCS#1 (legacy) and PKCS#8 (modern).
+	EVP_PKEY* load_private_key_from_string(const std::string& private_key_str)
 	{
-		// Check if the private key is valid
-		if (!rsa_private_key) {
-			Logger::logError(License::decryptedStrings().messages.errInvalidPrivKey);
-			return nullptr;
-		}
-
-		// Create a new RSA structure to hold the public key
-		RSA* rsa_public_key = RSAPublicKey_dup(rsa_private_key);
-		if (!rsa_public_key) {
-			Logger::logError(License::decryptedStrings().messages.errPubFromPriv);
-			print_openssl_error();
-		}
-
-		return rsa_public_key;
-	}
-
-	// Load RSA private key from string (PEM format)
-	RSA* load_private_key_from_string(const std::string& private_key_str)
-	{
-		BIO* bio = BIO_new_mem_buf((void*)private_key_str.c_str(), -1);
-		RSA* rsa_private_key = PEM_read_bio_RSAPrivateKey(bio, NULL, NULL, NULL);
-		if (!rsa_private_key) {
+		BIO* bio = BIO_new_mem_buf(private_key_str.c_str(), -1);
+		EVP_PKEY* pkey = PEM_read_bio_PrivateKey(bio, nullptr, nullptr, nullptr);
+		if (!pkey)
+		{
 			Logger::logError(License::decryptedStrings().messages.errLoadPriv);
 			print_openssl_error();
 		}
-
 		BIO_free(bio);
-		return rsa_private_key;
+		return pkey;
 	}
 
-	// Load RSA public key from string (PEM format)
-	RSA* load_public_key_from_string(const std::string& public_key_str)
+	EVP_PKEY* load_public_key_from_string(const std::string& public_key_str)
 	{
-		BIO* bio = BIO_new_mem_buf((void*)public_key_str.c_str(), -1);
-		RSA* rsa_public_key = PEM_read_bio_RSA_PUBKEY(bio, NULL, NULL, NULL);
-		if (!rsa_public_key) {
+		BIO* bio = BIO_new_mem_buf(public_key_str.c_str(), -1);
+		EVP_PKEY* pkey = PEM_read_bio_PUBKEY(bio, nullptr, nullptr, nullptr);
+		if (!pkey)
+		{
 			Logger::logError(License::decryptedStrings().messages.errLoadPub);
 			print_openssl_error();
 		}
-
 		BIO_free(bio);
-		return rsa_public_key;
+		return pkey;
 	}
-	// Function to sign a message using RSA private key
-	std::string sign_message(RSA* rsa_private_key, const std::string& message) 
+
+	// Sign the message with RSA-SHA256 (PKCS#1 v1.5 — same scheme as the old
+	// RSA_sign path, so signatures produced by the legacy 1.1.x code still
+	// verify here and vice versa).
+	std::string sign_message(EVP_PKEY* pkey, const std::string& message)
 	{
-		unsigned char hash[SHA256_DIGEST_LENGTH];
-		SHA256((unsigned char*)message.c_str(), message.length(), hash);
-
-		unsigned char* signature = (unsigned char*)malloc(RSA_size(rsa_private_key));
-		unsigned int signature_len = 0;
-
-		if (RSA_sign(NID_sha256, hash, SHA256_DIGEST_LENGTH, signature, &signature_len, rsa_private_key) != 1) {
-			Logger::logError(License::decryptedStrings().messages.errSign);
+		EVP_MD_CTX* mdctx = EVP_MD_CTX_new();
+		if(!mdctx)
+		{
 			print_openssl_error();
-			free(signature);
 			return "";
 		}
 
-		std::string signature_str((char*)signature, signature_len);
-		free(signature);
+		if (EVP_DigestSignInit(mdctx, nullptr, EVP_sha256(), nullptr, pkey) <= 0
+		    || EVP_DigestSignUpdate(mdctx, message.data(), message.size()) <= 0)
+		{
+			Logger::logError(License::decryptedStrings().messages.errSign);
+			print_openssl_error();
+			EVP_MD_CTX_free(mdctx);
+			return "";
+		}
 
-		return signature_to_string(signature_str);
+		size_t sig_len = 0;
+		if (EVP_DigestSignFinal(mdctx, nullptr, &sig_len) <= 0)
+		{
+			Logger::logError(License::decryptedStrings().messages.errSign);
+			print_openssl_error();
+			EVP_MD_CTX_free(mdctx);
+			return "";
+		}
+
+		std::vector<unsigned char> signature(sig_len);
+		if (EVP_DigestSignFinal(mdctx, signature.data(), &sig_len) <= 0)
+		{
+			Logger::logError(License::decryptedStrings().messages.errSign);
+			print_openssl_error();
+			EVP_MD_CTX_free(mdctx);
+			return "";
+		}
+
+		EVP_MD_CTX_free(mdctx);
+		return signature_to_string(std::string(reinterpret_cast<char*>(signature.data()), sig_len));
 	}
 
-	// Function to verify a signature using RSA public key
-	bool verify_signature(RSA* rsa_public_key, const std::string& message, const std::string& signature) 
+	bool verify_signature(EVP_PKEY* pkey, const std::string& message, const std::string& signature)
 	{
-		unsigned char hash[SHA256_DIGEST_LENGTH];
-		SHA256((unsigned char*)message.c_str(), message.length(), hash);
-		std::string signature_str = string_to_signature(signature);
-		int result = RSA_verify(NID_sha256, hash, SHA256_DIGEST_LENGTH, (unsigned char*)signature_str.c_str(), signature_str.length(), rsa_public_key);
-		if (result != 1) {
-			Logger::logError(License::decryptedStrings().messages.errSigVerFail);
+		std::string signature_bin = string_to_signature(signature);
+
+		EVP_MD_CTX* mdctx = EVP_MD_CTX_new();
+		if(!mdctx)
+		{
 			print_openssl_error();
 			return false;
 		}
 
+		if (EVP_DigestVerifyInit(mdctx, nullptr, EVP_sha256(), nullptr, pkey) <= 0
+		    || EVP_DigestVerifyUpdate(mdctx, message.data(), message.size()) <= 0)
+		{
+			Logger::logError(License::decryptedStrings().messages.errSigVerFail);
+			print_openssl_error();
+			EVP_MD_CTX_free(mdctx);
+			return false;
+		}
+
+		int result = EVP_DigestVerifyFinal(mdctx,
+			reinterpret_cast<const unsigned char*>(signature_bin.data()),
+			signature_bin.size());
+		EVP_MD_CTX_free(mdctx);
+
+		if (result != 1)
+		{
+			Logger::logError(License::decryptedStrings().messages.errSigVerFail);
+			if(result < 0) print_openssl_error();
+			return false;
+		}
 		return true;
 	}
-	// Encode binary data to Base64
-	std::string base64_encode(const std::string& binary_data) 
+
+	std::string base64_encode(const std::string& binary_data)
 	{
 		BIO* bio = BIO_new(BIO_s_mem());
 		BIO* b64 = BIO_new(BIO_f_base64());
@@ -492,8 +463,7 @@ namespace LicenseManager
 		return base64_encoded;
 	}
 
-	// Decode Base64 to binary data
-	std::string base64_decode(const std::string& base64_data) 
+	std::string base64_decode(const std::string& base64_data)
 	{
 		BIO* bio = BIO_new_mem_buf(base64_data.data(), base64_data.size());
 		BIO* b64 = BIO_new(BIO_f_base64());
@@ -506,14 +476,12 @@ namespace LicenseManager
 		return std::string(buffer.data(), length);
 	}
 
-	// Function to convert signature to Base64-encoded string
-	std::string signature_to_string(const std::string& signature) 
+	std::string signature_to_string(const std::string& signature)
 	{
 		return base64_encode(signature);
 	}
 
-	// Function to convert Base64-encoded string back to signature
-	std::string string_to_signature(const std::string& base64_signature) 
+	std::string string_to_signature(const std::string& base64_signature)
 	{
 		return base64_decode(base64_signature);
 	}
