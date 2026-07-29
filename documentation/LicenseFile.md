@@ -15,10 +15,15 @@ For license validation, the signature of the license data is also contained in t
 ## File structure
 The license is stored in json format.
 * **libraryInfo:** Documents the LicenseManager library version.
-* **licenseData:** Stores the application specific license informations.<br>
-Only this section is used in the validation process.
-* **signature:** The signature is generated using the [LicenseCreator](../examples/LicenseGenerator/README.md) and is needed to check the license for validity. 
+* **licenseData:** Stores the application specific license informations.
+* **name:** License display name.
+* **hardwareId:** Node-lock fingerprint (empty = not bound to a machine).
+* **validFrom / validUntil:** ISO-8601 validity window (empty = unbounded).
+* **signature:** The signature is generated using the [LicenseCreator](../examples/LicenseGenerator/README.md) and is needed to check the license for validity.
 
+The signed payload now covers **licenseData, name, hardwareId, validFrom and
+validUntil** — editing any of them invalidates the license. *(Licenses created by
+older versions, which signed only `licenseData`, must be re-generated.)*
 
 ```
 {
@@ -30,6 +35,9 @@ Only this section is used in the validation process.
         "name": "John Doe"
     },
     "name": "",
+    "hardwareId": "9f2c…",
+    "validFrom": "2025-01-01",
+    "validUntil": "2026-12-31",
     "signature": "QlrjbbBULuuCBLQeXlZhcRTfGPuyU84RgVm/FeEi7Ke4Ie6Hy0YI2Bl8PIH6iilc\nIuCA4IABRzWoszWkY76QzV6FQC5UmAHshH+u8jLnTqIbixA6Q5m/fpTHnC1IWlVz\nUzQOEgzDpdE05VOk/sEAI1PLhBx5PWjb9M7TsKRosO/1tObMzH2hhoQgrGoS2ZmE\nnmcno781pmMei7kAMTpwrgdfNnLETbgKly/uVAP1YRI/ls51WSd6GfN8kGcsPz55\nD5qKYgL2UU1JAc1ck6KG6BLeY5+QPowOdG/5Yzi6HhNkzKHOQoDV0WwJGP56w5jG\nt8ZzzZtW0+5p3wTuZHH/oA==\n"
 }
 

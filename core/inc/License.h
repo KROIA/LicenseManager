@@ -10,6 +10,19 @@ namespace LicenseManager
 	class LICENSE_MANAGER_API License
 	{
 	public:
+		// Result of a full license check. Only `valid` means the license may be
+		// trusted; every other value is a distinct failure reason.
+		enum class VerificationResult
+		{
+			valid = 0,
+			invalidSignature,   // signature does not match the signed payload
+			wrongMachine,       // node-locked license, running on another machine
+			notYetValid,        // current time is before validFrom
+			expired,            // current time is after validUntil
+			clockTampering,     // system clock appears to have been rolled back
+			malformed           // required fields missing / unparseable
+		};
+
 		License();
 		License(const License& other);
 
@@ -47,10 +60,70 @@ namespace LicenseManager
 			return m_name;
 		}
 
+		// --- Node-locking -----------------------------------------------------
+		// Bind the license to a machine fingerprint (see HardwareId). An empty
+		// value means the license is not node-locked. The value is part of the
+		// signed payload, so it cannot be edited without invalidating the license.
+		void setHardwareId(const std::string& hardwareId)
+		{
+			m_hardwareId = hardwareId;
+		}
+		const std::string& getHardwareId() const
+		{
+			return m_hardwareId;
+		}
+		bool isNodeLocked() const
+		{
+			return !m_hardwareId.empty();
+		}
+
+		// --- Validity window --------------------------------------------------
+		// ISO-8601 date ("YYYY-MM-DD") or datetime strings. Empty means unbounded.
+		// Both bounds are part of the signed payload.
+		void setValidFrom(const std::string& iso)
+		{
+			m_validFrom = iso;
+		}
+		const std::string& getValidFrom() const
+		{
+			return m_validFrom;
+		}
+		void setValidUntil(const std::string& iso)
+		{
+			m_validUntil = iso;
+		}
+		const std::string& getValidUntil() const
+		{
+			return m_validUntil;
+		}
+
 		bool saveToFile(const std::string& filePath) const;
 		bool loadFromFile(const std::string& filePath);
 
+		// Signature-only verification (kept for backwards compatibility). Prefer
+		// check(), which also enforces node-locking and the validity window.
 		bool isVerified(const std::string &publicKey) const;
+
+		// Full verification: signature + node-lock + validity window.
+		//   currentHardwareId : fingerprint of the running machine. If empty and
+		//                       the license is node-locked, the result is
+		//                       wrongMachine (fail closed).
+		//   nowIso            : current time as an ISO string. If empty the system
+		//                       clock is used.
+		VerificationResult check(const std::string& publicKey,
+								 const std::string& currentHardwareId = std::string(),
+								 const std::string& nowIso = std::string()) const;
+
+		// Human-readable name of a VerificationResult (for logging/UI).
+		static std::string toString(VerificationResult result);
+
+		// Anti-patch primitive: returns a value cryptographically derived from the
+		// *verified* license (a hash over the signature and `context`). Returns an
+		// empty string when the signature does not verify. Use the result as a key
+		// or seed for something the application genuinely needs (decrypting a
+		// resource, enabling a feature), so that skipping the check by patching a
+		// branch does not yield the correct value.
+		std::string deriveSecret(const std::string& publicKey, const std::string& context) const;
 
 		bool signLicense(const std::string& privateKey);
 		bool signLicenseFromFile(const std::string& privateKeyFile);
@@ -73,7 +146,11 @@ namespace LicenseManager
 		std::string m_signature;
 
 		std::string m_name;
-		std::map<std::string, std::string> m_licenseData;		
+		std::map<std::string, std::string> m_licenseData;
+
+		std::string m_hardwareId;   // node-lock fingerprint ("" = not locked)
+		std::string m_validFrom;    // ISO date/datetime ("" = no lower bound)
+		std::string m_validUntil;   // ISO date/datetime ("" = no upper bound)
 
 		bool m_nameChangedSinceLastSave = false;
 		std::string m_loadedPath;
@@ -93,6 +170,9 @@ namespace LicenseManager
 				static constexpr auto signature = EncryptedConstant::encrypt_string("signature");
 				static constexpr auto libraryInfo = EncryptedConstant::encrypt_string("libraryInfo");
 				static constexpr auto name = EncryptedConstant::encrypt_string("name");
+				static constexpr auto hardwareId = EncryptedConstant::encrypt_string("hardwareId");
+				static constexpr auto validFrom = EncryptedConstant::encrypt_string("validFrom");
+				static constexpr auto validUntil = EncryptedConstant::encrypt_string("validUntil");
 			};
 			struct Messages
 			{
@@ -123,6 +203,9 @@ namespace LicenseManager
 				std::string signature;
 				std::string libraryInfo;
 				std::string name;
+				std::string hardwareId;
+				std::string validFrom;
+				std::string validUntil;
 			};
 			struct Messages
 			{
@@ -150,6 +233,9 @@ namespace LicenseManager
 				jsonKeys.signature = EncryptedConstant::decrypt_string(EncryptedStrings::JsonKeys::signature);
 				jsonKeys.libraryInfo = EncryptedConstant::decrypt_string(EncryptedStrings::JsonKeys::libraryInfo);
 				jsonKeys.name = EncryptedConstant::decrypt_string(EncryptedStrings::JsonKeys::name);
+				jsonKeys.hardwareId = EncryptedConstant::decrypt_string(EncryptedStrings::JsonKeys::hardwareId);
+				jsonKeys.validFrom = EncryptedConstant::decrypt_string(EncryptedStrings::JsonKeys::validFrom);
+				jsonKeys.validUntil = EncryptedConstant::decrypt_string(EncryptedStrings::JsonKeys::validUntil);
 
 				messages.errReadingFromFile = EncryptedConstant::decrypt_string(EncryptedStrings::Messages::errReadingFromFile);
 				messages.errOpenSSL = EncryptedConstant::decrypt_string(EncryptedStrings::Messages::errOpenSSL);

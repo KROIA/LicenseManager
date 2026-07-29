@@ -9,4 +9,6 @@
 /// USER_SECTION_START 2
 #include "License.h"
 #include "EncryptedConstant.h"
+#include "HardwareId.h"
+#include "AntiTamper.h"
 /// USER_SECTION_END
